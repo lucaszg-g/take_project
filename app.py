@@ -29,24 +29,31 @@ class ChatGPTService:
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Aja como um professor de português"},
-                {"role": "user", "content": 'Reescreva em poucas palavras a seguinte descrição do projeto:  ' + prompt}
+                {"role": "system", "content": "Vou ajudá-lo a reescrever a descrição do projeto"
+                                              " de forma mais concisa e clara."},
+                {"role": "user", "content": 'Reescreva a seguinte descrição do projeto. Observação, Lembre-se de '
+                                            'manter a reescrita breve e direta para destacar os principais pontos '
+                                            'do projeto.:  ' + prompt}
             ]
         )
         return response.choices[0].message.content
 
     @staticmethod
     def sugerir_titulo(prompt):
-        response = client.chat.completions.create(
+        resposta = client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Aja como um gestor de projetos"},
+                {"role": "system", "content": "Vou ajudá-lo a encontrar um título com base na descrição fornecida."},
                 {"role": "user", "content": 'Qual seria um bom título com base na seguinte descrição. '
-                                            'Observação, me escreva apenas o título e com poucas palavras:  ' + prompt}
+                                            'Observação,  limite seu título a apenas algumas palavras'
+                                            ' para garantir a concisão:  ' + prompt}
             ]
         )
-        return response.choices[0].message.content
+
+        # Obtém o texto gerado
+        texto_gerado = resposta.choices[0].message.content
+        return texto_gerado
 
 
 # Models
@@ -424,8 +431,8 @@ def sugerir_titulo(projeto_id):
         flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    nova_descricao_sugerida = request.form['nova_descricao_modelo']
-    novo_titulo = ChatGPTService.sugerir_titulo(nova_descricao_sugerida)
+    breve_drescricao = request.form['nova_descricao_modelo']
+    novo_titulo = ChatGPTService.sugerir_titulo(breve_drescricao)
     flash(novo_titulo, 'info')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
