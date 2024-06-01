@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-bs-theme={{ session['tema'] }}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
+
+<body>
+    <header class="navbar navbar-expand-lg" style="background-color: #15181a">
+        <!-- Logo -->
+        <div class="container">
+            <div class="row">
+                <div class="col-lg">
+                    <img style="width: 80px; height: 80px;" src="{{ url_for('static', filename='img/logo_take.png') }}" alt="">
+                    <a class="navbar-brand p-2 font-monospace text-white" href="{{ url_for('index') }}">Take Project Management</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de navegação -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a href="{{ url_for('index') }}" class="navbar-brand text-white">Home</a>
+                        </li>
+                        {% if 'usuario_id' in session %}
+                            <li class="nav-item">
+                                <a href="{{ url_for('sair') }}" class="navbar-brand text-white">Sair</a>
+                            </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-light dropdown-toggle" type="button" id="dropdownMenuButtonDark" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Tema
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButtonDark">
+                                    <li><a class="dropdown-item {% if session['tema'] == 'light' %}active{% endif %}" href="{{ url_for('mudar_tema_claro') }}">Claro</a></li>
+                                    <li><a class="dropdown-item {% if session['tema'] == 'dark' %}active{% endif %}" href="{{ url_for('mudar_tema_escuro') }}">Escuro</a></li>
+                                </ul>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container my-5">
+
+        <!-- Mensagens -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</body>
+</html>

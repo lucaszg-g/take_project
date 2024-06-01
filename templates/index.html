@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    {% if not 'usuario_id' in session %}
+        <div class="container">
+            <div class="row justify-content-center">
+                <!-- Login Form -->
+                <div class="col-md-4">
+                    <div id="login-popup" class="shadow p-3 mb-5 bg-body-tertiary rounded">
+                        <form method="POST" action="{{ url_for('entrar') }}" class="form-container">
+                            <h2 class="font-monospace">Entrar</h2>
+                            <hr>
+                            <div class="form-group mt-1">
+                                <label for="email" class="form-label">Email:</label>
+                                <input type="email" name="email" id="email" class="form-control" required>
+                            </div>
+                            <div class="form-group mt-1">
+                                <label for="senha" class="form-label">Senha:</label>
+                                <input type="password" name="senha" id="senha" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-3">Enviar</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Register Form -->
+                <div class="col-md-4">
+                    <div id="register-popup" class="shadow p-3 mb-5 bg-body-tertiary rounded">
+                        <form method="POST" action="{{ url_for('registrar') }}" class="form-container">
+                            <h2 class="font-monospace">Registro</h2>
+                            <hr>
+                            <div class="form-group mt-1">
+                                <label for="nome" class="form-label">Nome de usuário:</label>
+                                <input type="text" name="nome" id="nome" class="form-control" required>
+                            </div>
+                            <div class="form-group mt-1">
+                                <label for="email" class="form-label">Email:</label>
+                                <input type="email" name="email" id="email" class="form-control" required>
+                            </div>
+                            <div class="form-group mt-1">
+                                <label for="senha" class="form-label">Senha:</label>
+                                <input type="password" name="senha" id="senha" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-3">Enviar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <h1 class="mb-4">Seus Projetos: </h1>
+                    <div class="row row-cols-1 row-cols-md-2 g-4 justify-content-center">
+                        {% for projeto in projetos %}
+                            <div class="col">
+                                <div class="card shadow">
+                                    <div class="card-body">
+                                        <h5 class="card-title font-monospace">{{ projeto.nome_projeto }}</h5>
+                                        <p class="mt-2">Descrição:</p>
+                                        <p class="card-text text-secondary" style="max-height: 150px; overflow-y: auto;">{% if projeto.descricao_projeto != None %} {{ projeto.descricao_projeto }} {% endif %}</p>
+                                        <a href="/projeto/{{ projeto.id }}" class="btn btn-primary">Ir até</a>
+                                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}">
+                                            Editar
+                                        </button>
+                                        <form method="POST" action="{{ url_for('excluir_projeto', projeto_id=projeto.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-danger">Excluir</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal Editar Projeto -->
+                            <div class="modal fade" id="modalEditarProjeto{{ projeto.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="exampleModalLabel">Editar Projeto</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form action="{{ url_for('alterar_projeto', projeto_id=projeto.id) }}" method="POST">
+                                                <div class="mb-3">
+                                                    <label for="nome_projeto" class="form-label">Nome do Projeto:</label>
+                                                    <input type="text" class="form-control text-secondary" id="nome_projeto" name="nome_projeto" value="{{ projeto.nome_projeto }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="descricao_projeto" class="form-label">Descrição do Projeto:</label>
+                                                    <textarea class="form-control text-secondary" id="descricao_projeto" name="descricao_projeto" rows="3">{{ projeto.descricao_projeto }}</textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">Salvar</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="text-center">
+                        <button type="button" class="btn btn-primary mt-4" data-bs-toggle="modal" data-bs-target="#modalCriarProjeto">
+                            Criar Novo Projeto
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Criar Projeto -->
+        <div class="modal fade" id="modalCriarProjeto" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Criar Novo Projeto</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="{{ url_for('criar_projeto') }}" method="POST">
+                            <div class="mb-3">
+                                <label for="nome_projeto" class="form-label">Nome do Projeto:</label>
+                                <input type="text" class="form-control" id="nome_projeto" name="nome_projeto" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="descricao_projeto" class="form-label">Descrição do Projeto:</label>
+                                <textarea class="form-control" id="descricao_projeto" name="descricao_projeto" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Criar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

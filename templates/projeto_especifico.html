@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %} Projeto {{ projeto.nome_projeto }} {% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h1 class="mb-4 font-monospace">{{ projeto.nome_projeto }}</h1>
+            <p class="card-text ">{% if projeto.descricao_projeto %} {{ projeto.descricao_projeto }} {% endif %}</p>
+
+            <h2 class="mt-4">Suas Tarefas:</h2>
+            <div class="list-group">
+                {% for tarefa in projeto.tarefas %}
+                    <div class="list-group-item shadow">
+                        <h5 class="mb-1"><b>{{ tarefa.nome_tarefa }}</b></h5>
+                        <p class="mb-1 mt-1"><b>Status:</b> {{ tarefa.status }}</p>
+                        <small><b>Criada em: </b>{{ tarefa.data_criacao.strftime('%d/%m/%Y') }}</small> <br>
+                        {% if tarefa.data_entrega %}
+                            <small> <b>Data de entrega: </b>{{ tarefa.data_entrega.strftime('%d/%m/%Y') }}</small>
+                        {% endif %}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}">Alterar</button>
+                            <form action="{{ url_for('excluir_tarefa', tarefa_id=tarefa.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Modal Alterar Tarefa -->
+                    <div class="modal fade" id="modalAlterarTarefa{{ tarefa.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="exampleModalLabel">Alterar Tarefa</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form action="{{ url_for('alterar_tarefa', tarefa_id=tarefa.id) }}" method="POST">
+                                        <div class="mb-3">
+                                            <label for="novo_nome_tarefa" class="form-label">Nome da Tarefa:</label>
+                                            <input type="text" class="form-control text-secondary" id="novo_nome_tarefa" name="novo_nome_tarefa" value="{{ tarefa.nome_tarefa }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="novo_status" class="form-label">Status:</label>
+                                            <select class="form-control text-secondary" id="novo_status" name="novo_status" required>
+                                                <option value="Não Iniciado" {% if tarefa.status == 'Não Iniciado' %}selected{% endif %}>Não Iniciado</option>
+                                                <option value="Em andamento" {% if tarefa.status == 'Em andamento' %}selected{% endif %}>Em Andamento</option>
+                                                <option value="Incompleta" {% if tarefa.status == 'Incompleta' %}selected{% endif %}>Incompleta</option>
+                                                <option value="Completa" {% if tarefa.status == 'Completa' %}selected{% endif %}>Completa</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="nova_data_entrega" class="form-label">Data de Entrega:</label>
+                                            <input type="date" class="form-control text-secondary" id="nova_data_entrega" name="nova_data_entrega" value="{{ tarefa.data_entrega.strftime('%d-%m-%Y') if tarefa.data_entrega }}">
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Alterar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarTarefa">
+                    Criar Nova Tarefa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Criar Tarefa -->
+<div class="modal fade" id="modalCriarTarefa" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Criar Nova Tarefa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('criar_tarefa') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="nome_tarefa" class="form-label">Nome da Tarefa:</label>
+                        <input type="text" class="form-control text-secondary" id="nome_tarefa" name="nome_tarefa" required>
+                    </div>
+                    <input type="hidden" name="projeto_id" value="{{ projeto.id }}">
+                    <button type="submit" class="btn btn-primary">Criar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
