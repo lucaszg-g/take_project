@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, request, session, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
 from openai import OpenAI
+import os
 
 # Configurações
 app = Flask(__name__)
@@ -10,7 +11,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///teste9.db'
 
 db = SQLAlchemy(app)
 
-client = OpenAI(api_key='')  # Coloque aqui a sua chave
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
 
 # ChatGPT
