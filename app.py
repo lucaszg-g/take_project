@@ -24,13 +24,26 @@ class ChatGPTService:
         return ChatGPTService.__instance
 
     @staticmethod
-    def sugerir_descricao(prompt):
+    def reescrever_descricao(prompt):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Aja como um chefe"},
-                {"role": "user", "content": 'De uma breve sugestão de descrição do projeto, nome:  ' + prompt}
+                {"role": "system", "content": "Aja como um professor de português"},
+                {"role": "user", "content": 'Reescreva em poucas palavras a seguinte descrição do projeto:  ' + prompt}
+            ]
+        )
+        return response.choices[0].message.content
+
+    @staticmethod
+    def sugerir_titulo(prompt):
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type": "text"},
+            messages=[
+                {"role": "system", "content": "Aja como um gestor de projetos"},
+                {"role": "user", "content": 'Qual seria um bom título com base na seguinte descrição. '
+                                            'Observação, me escreva apenas o título e com poucas palavras:  ' + prompt}
             ]
         )
         return response.choices[0].message.content
@@ -59,7 +72,7 @@ class Projeto(db.Model):
     usuario = db.relationship('Usuario', backref=db.backref('projetos', lazy=True))
     tarefas = db.relationship('Tarefa', backref='projeto_rel', cascade="all, delete-orphan", lazy=True)
 
-    def __init__(self, nome_projeto, usuario_id, descricao_projeto=None):
+    def __init__(self, nome_projeto, usuario_id, descricao_projeto=''):
         self.nome_projeto = nome_projeto
         self.usuario_id = usuario_id
         self.descricao_projeto = descricao_projeto
@@ -94,7 +107,7 @@ class Tarefa(db.Model):
         self.data_entrega = data_entrega
 
 
-class ControleUsuario:
+class ComandosUsuario:
     @staticmethod
     def verificar_email_nome(email, nome):
         verificar_email = Usuario.query.filter_by(email=email).first()
@@ -130,7 +143,7 @@ class ControleUsuario:
         flash('Você se desconectou com sucesso!', 'success')
 
 
-class ControleProjeto:
+class ComandosProjeto:
     @staticmethod
     def criar_projeto(nome_projeto, usuario_id):
         projeto_existente = Projeto.query.filter_by(nome_projeto=nome_projeto, usuario_id=usuario_id).first()
@@ -167,7 +180,7 @@ class ControleProjeto:
         return False
 
 
-class ControleTarefa:
+class ComandosTarefa:
     @staticmethod
     def criar_tarefa(nome_tarefa, projeto_id):
         nova_tarefa = Tarefa(nome_tarefa, projeto_id)
@@ -212,7 +225,7 @@ class ControleTarefa:
         return False
 
 
-class ControlePermissoes:
+class VerificarPermissoes:
     @staticmethod
     def verificar_permissao_projeto(projeto_id):
         projeto = Projeto.query.filter_by(id=projeto_id, usuario_id=session['usuario_id']).first()
@@ -244,8 +257,8 @@ def registrar():
     nome = request.form['nome']
     email = request.form['email']
     senha = request.form['senha']
-    if ControleUsuario.verificar_email_nome(email, nome):
-        ControleUsuario.cadastrar_usuario(nome, email, senha)
+    if ComandosUsuario.verificar_email_nome(email, nome):
+        ComandosUsuario.cadastrar_usuario(nome, email, senha)
         return redirect(url_for('index'))
     return redirect(url_for('index'))
 
@@ -254,26 +267,28 @@ def registrar():
 def entrar():
     email = request.form['email']
     senha = request.form['senha']
-    ControleUsuario.logar_usuario(email, senha)
+    ComandosUsuario.logar_usuario(email, senha)
     return redirect(url_for('index'))
 
 
 @app.route('/sair')
 def sair():
-    ControleUsuario.deslogar_usuario()
+    ComandosUsuario.deslogar_usuario()
     return redirect(url_for('index'))
 
 
 @app.route('/mudar_tema_claro')
 def mudar_tema_claro():
     session['tema'] = 'light'
-    return redirect(url_for('index'))
+    proxima_url = request.referrer
+    return redirect(proxima_url or url_for('index'))
 
 
 @app.route('/mudar_tema_escuro')
 def mudar_tema_escuro():
     session['tema'] = 'dark'
-    return redirect(url_for('index'))
+    proxima_url = request.referrer
+    return redirect(proxima_url or url_for('index'))
 
 
 @app.route('/projeto/<int:projeto_id>', methods=['GET'])
@@ -282,7 +297,7 @@ def projeto_especifico(projeto_id):
         flash('Você precisa estar logado para acessar esta página', 'warning')
         return redirect(url_for('index'))
 
-    if not ControlePermissoes.verificar_permissao_projeto(projeto_id):
+    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
     projeto = Projeto.query.get(projeto_id)
@@ -301,7 +316,7 @@ def criar_projeto():
     nome_projeto = request.form['nome_projeto']
     descricao_projeto = request.form['descricao_projeto']
     usuario_id = session['usuario_id']
-    projeto = ControleProjeto.criar_projeto(nome_projeto, usuario_id)
+    projeto = ComandosProjeto.criar_projeto(nome_projeto, usuario_id)
     if projeto:
         if descricao_projeto:
             projeto.set_descricao_projeto(descricao_projeto)
@@ -315,13 +330,13 @@ def alterar_projeto(projeto_id):
         flash('Você precisa estar logado para alterar um projeto', 'warning')
         return redirect(url_for('index'))
 
-    if not ControlePermissoes.verificar_permissao_projeto(projeto_id):
+    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
     novo_nome_projeto = request.form['nome_projeto']
     nova_descricao_projeto = request.form['descricao_projeto']
 
-    ControleProjeto.alterar_projeto(projeto_id, novo_nome_projeto, nova_descricao_projeto)
+    ComandosProjeto.alterar_projeto(projeto_id, novo_nome_projeto, nova_descricao_projeto)
 
     return redirect(url_for('index'))
 
@@ -332,10 +347,10 @@ def excluir_projeto(projeto_id):
         flash('Você precisa estar logado para excluir um projeto', 'warning')
         return redirect(url_for('index'))
 
-    if not ControlePermissoes.verificar_permissao_projeto(projeto_id):
+    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
-    ControleProjeto.excluir_projeto(projeto_id)
+    ComandosProjeto.excluir_projeto(projeto_id)
     return redirect(url_for('index'))
 
 
@@ -346,11 +361,11 @@ def criar_tarefa():
         return redirect(url_for('index'))
 
     projeto_id = request.form['projeto_id']
-    if not ControlePermissoes.verificar_permissao_projeto(projeto_id):
+    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
     nome_tarefa = request.form['nome_tarefa']
-    ControleTarefa.criar_tarefa(nome_tarefa, projeto_id)
+    ComandosTarefa.criar_tarefa(nome_tarefa, projeto_id)
 
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
@@ -361,7 +376,7 @@ def alterar_tarefa(tarefa_id):
         flash('Você precisa estar logado para alterar uma tarefa', 'warning')
         return redirect(url_for('index'))
 
-    if not ControlePermissoes.verificar_permissao_tarefa(tarefa_id):
+    if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
     novo_nome_tarefa = request.form['novo_nome_tarefa']
@@ -371,7 +386,7 @@ def alterar_tarefa(tarefa_id):
     if not nova_data_entrega:
         nova_data_entrega = None
 
-    ControleTarefa.alterar_tarefa(tarefa_id, novo_nome_tarefa, novo_status, nova_data_entrega)
+    ComandosTarefa.alterar_tarefa(tarefa_id, novo_nome_tarefa, novo_status, nova_data_entrega)
     tarefa = Tarefa.query.get(tarefa_id)
     return redirect(url_for('projeto_especifico', projeto_id=tarefa.projeto_id))
 
@@ -382,25 +397,37 @@ def excluir_tarefa(tarefa_id):
         flash('Você precisa estar logado para excluir uma tarefa', 'warning')
         return redirect(url_for('index'))
 
-    if not ControlePermissoes.verificar_permissao_tarefa(tarefa_id):
+    if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
     tarefa = Tarefa.query.get(tarefa_id)
     projeto_id = tarefa.projeto_id
-    ControleTarefa.excluir_tarefa(tarefa_id)
+    ComandosTarefa.excluir_tarefa(tarefa_id)
 
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
-@app.route('/sugerir_descricao/<nome_projeto>', methods=['POST'])
-def sugerir_descricao(nome_projeto):
+@app.route('/projeto/<int:projeto_id>/reescrever_descricao/<descricao_projeto>', methods=['POST'])
+def reescrever_descricao(projeto_id, descricao_projeto):
     if 'usuario_id' not in session:
-        flash('Você precisa estar logado para sugerir melhorias', 'warning')
+        flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    melhoria = ChatGPTService.sugerir_descricao(nome_projeto)
-    flash(melhoria, 'info')
-    return redirect(url_for('index'))
+    nova_descricao_sugerida = ChatGPTService.reescrever_descricao(descricao_projeto)
+    flash(nova_descricao_sugerida, 'info')
+    return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
+
+
+@app.route('/projeto/<int:projeto_id>/sugerir_titulo', methods=['POST'])
+def sugerir_titulo(projeto_id):
+    if 'usuario_id' not in session:
+        flash('Você precisa estar logado para completar esta ação', 'warning')
+        return redirect(url_for('index'))
+
+    nova_descricao_sugerida = request.form['nova_descricao_modelo']
+    novo_titulo = ChatGPTService.sugerir_titulo(nova_descricao_sugerida)
+    flash(novo_titulo, 'info')
+    return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
 # Inicializar a base de dados

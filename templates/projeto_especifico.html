@@ -92,10 +92,58 @@
         </div>
     </div>
 </div>
-<!--
-Exemplo modelo teste para usar o chatgpt
-<form action="{{ url_for('sugerir_descricao', nome_projeto=projeto.nome_projeto) }}" method="POST">
-    <button type="submit" class="btn btn-warning">aaa</button>
-</form>
--->
+
+<!-- Ações da Inteligência artificial -->
+
+<!-- Botão que abre o modal -->
+<div class="position-fixed bottom-0 end-0 m-3">
+    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalAcoesIA">
+        Inteligência Artificial
+    </button>
+</div>
+
+<!-- Modal IA -->
+    <div class="modal fade" id="modalAcoesIA" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Inteligência Artificial</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if projeto.descricao_projeto %}
+                        <form action="{{ url_for('reescrever_descricao', projeto_id=projeto.id, descricao_projeto=projeto.descricao_projeto) }}" method="POST">
+                            <button type="submit" class="btn btn-primary">Sugerir uma nova descrição</button>
+                        </form>
+                    {% endif %}
+
+                    <button type="button" class="btn btn-secondary mt-3" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
+                        Sugerir um novo título para o projeto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para sugerir novo título -->
+    <div class="modal fade" id="modalNovoTitulo" tabindex="-1" aria-labelledby="novoTituloLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="novoTituloLabel">Sugerir Novo Título</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('sugerir_titulo', projeto_id=projeto.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="novaDescricao" class="form-label">Breve Descrição</label>
+                            <textarea class="form-control" id="novaDescricao" name="nova_descricao_modelo" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enviar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
