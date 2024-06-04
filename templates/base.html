@@ -5,36 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> {% block title %}{% endblock %} </title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <style>
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            z-index: 9998;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            cursor: not-allowed;
-        }
-        .loading-spinner {
-            display: none;
-            position: fixed;
-            z-index: 9999;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-    </style>
 </head>
-
 <body>
-    <div class="loading-overlay"></div>
-    <div class="loading-spinner">
-        <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
-            <span class="visually-hidden">Carregando...</span>
-        </div>
-    </div>
-
     <header class="navbar navbar-expand-lg" style="background-color: #15181a">
         <!-- Logo -->
         <div class="container">
@@ -95,32 +67,10 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-    <script>
-        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
-        const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl))
-    </script>
-    <script>
-        // JavaScript para mostrar o spinner de carregamento e desabilitar a interação
-        document.addEventListener('DOMContentLoaded', function () {
-            const forms = document.querySelectorAll('form');
-            const buttons = document.querySelectorAll('button[type="submit"]');
-            const loadingOverlay = document.querySelector('.loading-overlay');
-            const loadingSpinner = document.querySelector('.loading-spinner');
+    {% block script %}{% endblock %}
 
-            function showLoadingSpinner() {
-                loadingOverlay.style.display = 'block';
-                loadingSpinner.style.display = 'block';
-            }
 
-            forms.forEach(form => {
-                form.addEventListener('submit', showLoadingSpinner);
-            });
 
-            buttons.forEach(button => {
-                button.addEventListener('click', showLoadingSpinner);
-            });
-        });
-    </script>
+
 </body>
 </html>

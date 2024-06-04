@@ -63,18 +63,13 @@
                                         <h5 class="card-title font-monospace">{{ projeto.nome_projeto }}</h5>
                                         <p class="mt-2">Descrição:</p>
                                         <p class="card-text text-secondary" style="max-height: 150px; overflow-y: auto;">{% if projeto.descricao_projeto != None %} {{ projeto.descricao_projeto }} {% endif %}</p>
-                                        <a href="/projeto/{{ projeto.id }}" class="btn btn-primary">Ir até</a>
+                                        <a href="{{ url_for('projeto_especifico', projeto_id=projeto.id) }}" class="btn btn-primary">Ir até</a>
                                         <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}">
                                             Editar
                                         </button>
                                         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirProjeto{{ projeto.id }}">
                                             Excluir
                                         </button>
-                                        <!--
-                                        <form method="POST" action="{{ url_for('excluir_projeto', projeto_id=projeto.id) }}" class="d-inline">
-                                            <button type="submit" class="btn btn-danger">Excluir</button>
-                                        </form>
-                                        -->
                                     </div>
                                 </div>
                             </div>
@@ -118,7 +113,7 @@
                                                     <label for="senha_usuario" class="form-label">Escreva sua senha para confirmar a ação.</label>
                                                     <input type="password" class="form-control text-secondary" id="senha_usuario" name="senha_usuario" required>
                                                 </div>
-                                                <button type="submit" class="btn btn-primary">Salvar</button>
+                                                <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
                                             </form>
                                         </div>
                                     </div>

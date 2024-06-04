@@ -24,16 +24,16 @@ class ChatGPTService:
         return ChatGPTService.__instance
 
     @staticmethod
-    def reescrever_descricao(prompt):
+    def reescrever_descricao(descricao_projeto, nome_projeto):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Vou ajudá-lo a reescrever a descrição do projeto"
-                                              " de forma mais concisa e clara."},
-                {"role": "user", "content": 'Reescreva a seguinte descrição do projeto. Observação, Lembre-se de '
-                                            'manter a reescrita breve e direta para destacar os principais pontos '
-                                            'do projeto.:  ' + prompt}
+                {"role": "system", "content": "Responda como um professor"},
+                {"role": "user", "content": 'Crie uma nova descrição para projeto (' + nome_projeto + '). Observação, '
+                                            'Lembre-se de manter a escrita breve e direta para destacar os principais '
+                                            'pontos do projeto. Observação 2, o projeto ja possui uma descrição ('
+                                            + descricao_projeto + '). A use de pase para a sua nova descrição.'}
             ]
         )
         return response.choices[0].message.content
@@ -44,7 +44,7 @@ class ChatGPTService:
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Vou ajudá-lo a encontrar um título com base na descrição fornecida."},
+                {"role": "system", "content": "Aja como um professor de português."},
                 {"role": "user", "content": 'Qual seria um bom título com base na seguinte descrição. '
                                             'Observação,  limite seu título a apenas algumas palavras'
                                             ' para garantir a concisão:  ' + prompt}
@@ -54,16 +54,22 @@ class ChatGPTService:
         return resposta.choices[0].message.content
 
     @staticmethod
-    def sugerir_taferas(nome_projeto, descricao_projeto):
+    def sugerir_taferas(nome_projeto, descricao_projeto, tarefas_projeto):
+        if len(tarefas_projeto) >= 0:
+            tarefas_projeto_string = ', '.join(tarefas_projeto)
+        else:
+            tarefas_projeto_string = 'None'
         resposta = client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Vou recomendar tarefas para o seu projeto conforme o nome e a descrição "
-                                              " fornecida."},
+                {"role": "system", "content": "Aja como um professor"},
                 {"role": "user", "content": 'Quais tarefas seriam boas para se definir no projeto ' + nome_projeto +
-                                            ' que tem a seguinte descrição ' + descricao_projeto + ' Observação,'
-                                            ' limite suas sugestões em apenas títulos para garantir a concisão'}
+                                            ' que tem a seguinte descrição ' + descricao_projeto + '. Observação,'
+                                            ' limite suas sugestões em apenas títulos para garantir a concisão.'
+                                            ' Observação 2, envie sua resposta separando os títulos com (;). Exemplo, '
+                                            ' abelha; mel; urso; .... . Observação 3, o projeto ja tem as seguintes '
+                                            'tarefas' + tarefas_projeto_string}
             ]
         )
 
@@ -79,9 +85,7 @@ class ChatGPTService:
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Vou avaliar o seu projeto conforme o nome, descrição e se houver as "
-                                              "tarefas. Se caso a descrição ou tarefas forem igual a None, "
-                                              "recomende a criação dos mesmos"},
+                {"role": "system", "content": "Aja como um avaliador de projetos"},
                 {"role": "user", "content": 'Avalie o projeto (' + nome_projeto + ') que tem a descrição ('
                                             + descricao_projeto + ') e as tarefas (' + tarefas_projeto_string + ') '
                                             'Se necessário aponte pontos do projeto que possam precisar de melhorias, '
@@ -99,7 +103,7 @@ class ChatGPTService:
             model="gpt-3.5-turbo-0125",
             response_format={"type": "text"},
             messages=[
-                {"role": "system", "content": "Vou formatar a avaliação do projeto para que possa ficar mais bonita."},
+                {"role": "system", "content": "Aja como um professor."},
                 {"role": "user", "content": 'Formate a avaliação do projeto da seguinte forma. '
                                             'Avaliação sobre o nome do projeto: (coloque aqui a avaliação acerca do '
                                             'nome do projeto);'
@@ -430,6 +434,7 @@ def excluir_projeto(projeto_id):
 
     if ComandosUsuario.verificar_senha(usuario_id, senha_usuario):
         ComandosProjeto.excluir_projeto(projeto_id)
+        return redirect(url_for('index'))
 
     proxima_url = request.referrer
     return redirect(proxima_url or url_for('index'))
@@ -481,25 +486,38 @@ def excluir_tarefa(tarefa_id):
     if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
-    senha_usuario = request.form['senha_usuario']
-
     tarefa = Tarefa.query.get(tarefa_id)
     projeto_id = tarefa.projeto_id
-    usuario_id = session['usuario_id']
 
-    if ComandosUsuario.verificar_senha(usuario_id, senha_usuario):
-        ComandosTarefa.excluir_tarefa(tarefa_id)
+    ComandosTarefa.excluir_tarefa(tarefa_id)
 
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
-@app.route('/projeto/<int:projeto_id>/reescrever_descricao/<descricao_projeto>', methods=['POST'])
-def reescrever_descricao(projeto_id, descricao_projeto):
+@app.route('/projeto/<int:projeto_id>/excluir_tarefas_selecionadas', methods=['POST'])
+def excluir_tarefas_selecionadas(projeto_id):
+    if 'usuario_id' not in session:
+        flash('Você precisa estar logado para excluir tarefas', 'warning')
+        return redirect(url_for('index'))
+
+    tarefas_selecionadas = request.form.getlist('tarefas_selecionadas[]')
+
+    if len(tarefas_selecionadas) > 0:
+        for tarefa_id in tarefas_selecionadas:
+            ComandosTarefa.excluir_tarefa(tarefa_id)
+        flash('Tarefas selecionadas excluídas com sucesso!', 'success')
+    else:
+        flash('Selecione pelo menos uma tarefa', 'warning')
+    return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
+
+
+@app.route('/projeto/<int:projeto_id>/reescrever_descricao/<descricao_projeto>/<nome_projeto>', methods=['POST'])
+def reescrever_descricao(projeto_id, descricao_projeto, nome_projeto):
     if 'usuario_id' not in session:
         flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    nova_descricao_sugerida = ChatGPTService.reescrever_descricao(descricao_projeto)
+    nova_descricao_sugerida = ChatGPTService.reescrever_descricao(descricao_projeto, nome_projeto)
     flash(nova_descricao_sugerida, 'info')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
@@ -522,9 +540,33 @@ def sugerir_taferas(projeto_id, nome_projeto, descricao_projeto):
         flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    sugestao_tarefas = ChatGPTService.sugerir_taferas(nome_projeto, descricao_projeto)
+    projeto = Projeto.query.get(projeto_id)
+    projeto_tarefas = []
+
+    for tarefa in projeto.tarefas:
+        projeto_tarefas.append(tarefa.nome_tarefa)
+
+    sugestao_tarefas = ChatGPTService.sugerir_taferas(nome_projeto, descricao_projeto, projeto_tarefas)
     flash(sugestao_tarefas, 'info')
 
+    sugestao_tarefas = sugestao_tarefas.split(';')
+
+    return render_template('projeto_especifico.html', projeto=projeto, sugestao_tarefas=sugestao_tarefas)
+
+
+@app.route('/projeto/<int:projeto_id>/adicionar_tarefas_sugeridas', methods=['POST'])
+def adicionar_tarefas_sugeridas(projeto_id):
+    if 'usuario_id' not in session:
+        flash('Você precisa estar logado para adicionar tarefas', 'warning')
+        return redirect(url_for('index'))
+
+    tarefas_selecionadas = request.form.getlist('tarefas_sugeridas[]')
+
+    # Adicione as tarefas selecionadas ao projeto
+    for tarefa in tarefas_selecionadas:
+        ComandosTarefa.criar_tarefa(tarefa, projeto_id)
+
+    flash('Tarefas sugeridas adicionadas com sucesso!', 'success')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 

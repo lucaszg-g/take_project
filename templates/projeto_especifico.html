@@ -15,21 +15,38 @@
             </button>
 
             <h2 class="mt-4">Suas Tarefas:</h2>
-            <div class="list-group">
-                {% for tarefa in projeto.tarefas %}
-                    <div class="list-group-item shadow">
-                        <h5 class="mb-1"><b>{{ tarefa.nome_tarefa }}</b></h5>
-                        <p class="mb-1 mt-1"><b>Status:</b> {{ tarefa.status }}</p>
-                        <small><b>Criada em: </b>{{ tarefa.data_criacao.strftime('%d/%m/%Y') }}</small> <br>
-                        {% if tarefa.data_entrega %}
-                            <small> <b>Data de entrega: </b>{{ tarefa.data_entrega.strftime('%d/%m/%Y') }}</small>
-                        {% endif %}
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}">Alterar</button>
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirTarefa{{ tarefa.id }}">Excluir</button>
-                        </div>
-                    </div>
 
+            <div class="list-group">
+                <form action=" {{ url_for('excluir_tarefas_selecionadas', projeto_id=projeto.id) }}" method="POST" id="formExcluirTarefas">
+                    {% for tarefa in projeto.tarefas %}
+                        <div class="list-group-item shadow">
+                            <div class="form-check">
+                                <input class="form-check-input tarefa-checkbox" type="checkbox" value="{{ tarefa.id }}" id="tarefa-checkbox-{{ tarefa.id }}" name="tarefas_selecionadas[]">
+                                <label class="form-check-label" for="tarefa-checkbox-{{ tarefa.id }}">
+                                    <b>{{ tarefa.nome_tarefa }}</b>
+                                </label>
+                            </div>
+                            <p class="mb-1 mt-1"><b>Status:</b> {{ tarefa.status }}</p>
+                            <small><b>Criada em: </b>{{ tarefa.data_criacao.strftime('%d/%m/%Y') }}</small> <br>
+                            {% if tarefa.data_entrega %}
+                                <small> <b>Data de entrega: </b>{{ tarefa.data_entrega.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}">Alterar</button>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirTarefa{{ tarefa.id }}">Excluir</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarTarefa">Criar Nova Tarefa</button>
+                        {% if sugestao_tarefas %}
+                            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalAdicionarTarefasSugeridas">Adicionar tarefas sugeridas</button>
+                        {% endif %}
+                        <button type="button" class="btn btn-danger" id="btnAbrirModalExclusao">Excluir Tarefas Selecionadas</button>
+                    </div>
+                </form>
+
+                {% for tarefa in projeto.tarefas %}
                     <!-- Modal Alterar Tarefa -->
                     <div class="modal fade" id="modalAlterarTarefa{{ tarefa.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                         <div class="modal-dialog">
@@ -64,12 +81,6 @@
                         </div>
                     </div>
                 {% endfor %}
-            </div>
-
-            <div class="text-center mt-4">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarTarefa">
-                    Criar Nova Tarefa
-                </button>
             </div>
         </div>
     </div>
@@ -107,60 +118,72 @@
 </div>
 
 <!-- Modal IA -->
-    <div class="modal fade" id="modalAcoesIA" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Inteligência Artificial</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    {% if projeto.descricao_projeto %}
-                        <form action="{{ url_for('reescrever_descricao', projeto_id=projeto.id, descricao_projeto=projeto.descricao_projeto) }}" method="POST">
-                            <button type="submit" class="btn btn-outline-info">Sugerir uma nova descrição</button>
-                        </form>
-                    {% endif %}
-
-                    <button type="button" class="btn btn-outline-info mt-3" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
-                        Sugerir um novo título para o projeto
-                    </button>
-
-                    {% if projeto.descricao_projeto and projeto.nome_projeto %}
-                        <form action="{{ url_for('sugerir_taferas', projeto_id=projeto.id, nome_projeto=projeto.nome_projeto, descricao_projeto=projeto.descricao_projeto) }}" method="POST">
-                            <button type="submit" class="btn btn-outline-info mt-3">Sugerir novas tarefas</button>
-                        </form>
-                    {% endif %}
-                    <form action="{{ url_for('avaliar_projeto', projeto_id=projeto.id) }}" method="POST">
-                        <button type="submit" class="btn btn-outline-info mt-3">
-                            Avaliar o meu projeto
+<div class="modal fade" id="modalAcoesIA" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Inteligência Artificial</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if projeto.descricao_projeto %}
+                    <form action="{{ url_for('reescrever_descricao', projeto_id=projeto.id, descricao_projeto=projeto.descricao_projeto, nome_projeto=projeto.nome_projeto) }}" method="POST" class="ia-action-form">
+                        <button type="submit" class="btn btn-outline-info ia-action-btn">
+                            Sugerir uma nova descrição
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         </button>
                     </form>
+                {% endif %}
 
-                </div>
-            </div>
-        </div>
-    </div>
+                <button type="button" class="btn btn-outline-info mt-3 ia-action-btn" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
+                    Sugerir um novo título para o projeto
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
 
-    <!-- Modal para sugerir novo título -->
-    <div class="modal fade" id="modalNovoTitulo" tabindex="-1" aria-labelledby="novoTituloLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="novoTituloLabel">Sugerir Novo Título</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form action="{{ url_for('sugerir_titulo', projeto_id=projeto.id) }}" method="POST">
-                        <div class="mb-3">
-                            <label for="novaDescricao" class="form-label">Escreva uma pequena descrição para sugerirmos um título para o seu projeto:</label>
-                            <textarea class="form-control" id="novaDescricao" name="nova_descricao_modelo" rows="3" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Enviar</button>
+                {% if projeto.descricao_projeto and projeto.nome_projeto %}
+                    <form action="{{ url_for('sugerir_taferas', projeto_id=projeto.id, nome_projeto=projeto.nome_projeto, descricao_projeto=projeto.descricao_projeto) }}" method="POST" class="ia-action-form">
+                        <button type="submit" class="btn btn-outline-info mt-3 ia-action-btn">
+                            Sugerir novas tarefas
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
                     </form>
-                </div>
+                {% endif %}
+
+                <form action="{{ url_for('avaliar_projeto', projeto_id=projeto.id) }}" method="POST" class="ia-action-form">
+                    <button type="submit" class="btn btn-outline-info mt-3 ia-action-btn">
+                        Avaliar o meu projeto
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Modal para sugerir novo título -->
+<div class="modal fade" id="modalNovoTitulo" tabindex="-1" aria-labelledby="novoTituloLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoTituloLabel">Sugerir Novo Título</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('sugerir_titulo', projeto_id=projeto.id) }}" method="POST" class="ia-action-form">
+                    <div class="mb-3">
+                        <label for="novaDescricao" class="form-label">Escreva uma pequena descrição para sugerirmos um título para o seu projeto:</label>
+                        <textarea class="form-control" id="novaDescricao" name="nova_descricao_modelo" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary ia-action-btn">
+                        Enviar
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     <!-- Modal Editar Projeto -->
     <div class="modal fade" id="modalEditarProjeto{{ projeto.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -200,15 +223,95 @@
                     <form action="{{ url_for('excluir_tarefa', tarefa_id=tarefa.id) }}" method="POST">
                         <div class="mb-3">
                             <p class="text-danger">Você tem certeza que deseja excluir a tarefa: {{ tarefa.nome_tarefa }}</p>
-                            <label for="senha_usuario" class="form-label">Escreva sua senha para confirmar a ação.</label>
-                            <input type="password" class="form-control text-secondary" id="senha_usuario" name="senha_usuario" required>
+                            <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
                         </div>
-                        <button type="submit" class="btn btn-primary">Confirmar Exclusão</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 {% endfor %}
+<!-- Modal Excluir Projeto -->
+    <div class="modal fade" id="modalExcluirProjeto{{ projeto.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Excluir Projeto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('excluir_projeto', projeto_id=projeto.id) }}" method="POST">
+                        <div class="mb-3">
+                            <p class="text-danger">Você tem certeza que deseja excluir o projeto: {{ projeto.nome_projeto }}</p>
+                            <label for="senha_usuario" class="form-label">Escreva sua senha para confirmar a ação.</label>
+                            <input type="password" class="form-control text-secondary" id="senha_usuario" name="senha_usuario" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal para adicionar tarefas sugeridas -->
+    <div class="modal fade" id="modalAdicionarTarefasSugeridas" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Adicionar Tarefas Sugeridas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarTarefasSugeridas" action="{{ url_for('adicionar_tarefas_sugeridas', projeto_id=projeto.id) }}" method="POST">
+                        {% for sugestao in sugestao_tarefas %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="tarefas_sugeridas[]" value="{{ sugestao }}" id="tarefa{{ loop.index }}">
+                                <label class="form-check-label" for="tarefa{{ loop.index }}">
+                                    {{ sugestao }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                        <div class="text-center mt-3">
+                            <button type="submit" class="btn btn-primary">Adicionar Tarefas Selecionadas</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação Excluir Tarefas Selecionadas -->
+    <div class="modal fade" id="modalConfirmarExclusaoTarefas" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Confirmar Exclusão de Tarefas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger">Você tem certeza que deseja excluir as tarefas selecionadas?</p>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Confirmar Exclusão</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block script %}
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Ao clicar no botão, abrir o modal de confirmação
+        document.getElementById("btnAbrirModalExclusao").addEventListener("click", function () {
+            var myModal = new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoTarefas'));
+            myModal.show();
+        });
+
+        // Ao clicar em "Confirmar Exclusão" no modal, enviar o formulário para excluir as tarefas selecionadas
+        document.getElementById("btnConfirmarExclusao").addEventListener("click", function () {
+            var form = document.getElementById("formExcluirTarefas");
+            form.submit();
+        });
+    });
+    </script>
 
 {% endblock %}
