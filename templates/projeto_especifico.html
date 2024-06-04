@@ -298,6 +298,7 @@
 {% endblock %}
 
 {% block script %}
+    <!-- Modal de confirmação de exclusão de várias tarefas -->
     <script>
     document.addEventListener("DOMContentLoaded", function () {
         // Ao clicar no botão, abrir o modal de confirmação
@@ -312,6 +313,23 @@
             form.submit();
         });
     });
+    </script>
+
+    <!-- Spinners -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          const spinnerButtons = document.querySelectorAll(".ia-action-btn");
+
+          spinnerButtons.forEach(button => {
+            button.addEventListener("click", function () {
+              const spinner = button.querySelector(".spinner-border");
+
+              spinner.classList.toggle("d-none");
+            });
+          });
+
+        });
+
     </script>
 
 {% endblock %}
