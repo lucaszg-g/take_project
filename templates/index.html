@@ -67,9 +67,14 @@
                                         <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}">
                                             Editar
                                         </button>
+                                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirProjeto{{ projeto.id }}">
+                                            Excluir
+                                        </button>
+                                        <!--
                                         <form method="POST" action="{{ url_for('excluir_projeto', projeto_id=projeto.id) }}" class="d-inline">
                                             <button type="submit" class="btn btn-danger">Excluir</button>
                                         </form>
+                                        -->
                                     </div>
                                 </div>
                             </div>
@@ -91,6 +96,27 @@
                                                 <div class="mb-3">
                                                     <label for="descricao_projeto" class="form-label">Descrição do Projeto:</label>
                                                     <textarea class="form-control text-secondary" id="descricao_projeto" name="descricao_projeto" rows="3">{{ projeto.descricao_projeto }}</textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">Salvar</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Modal Excluir Projeto -->
+                            <div class="modal fade" id="modalExcluirProjeto{{ projeto.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="exampleModalLabel">Excluir Projeto</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form action="{{ url_for('excluir_projeto', projeto_id=projeto.id) }}" method="POST">
+                                                <div class="mb-3">
+                                                    <p class="text-danger">Você tem certeza que deseja excluir o projeto: {{ projeto.nome_projeto }}</p>
+                                                    <label for="senha_usuario" class="form-label">Escreva sua senha para confirmar a ação.</label>
+                                                    <input type="password" class="form-control text-secondary" id="senha_usuario" name="senha_usuario" required>
                                                 </div>
                                                 <button type="submit" class="btn btn-primary">Salvar</button>
                                             </form>

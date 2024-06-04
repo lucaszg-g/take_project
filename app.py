@@ -51,9 +51,68 @@ class ChatGPTService:
             ]
         )
 
-        # Obtém o texto gerado
-        texto_gerado = resposta.choices[0].message.content
-        return texto_gerado
+        return resposta.choices[0].message.content
+
+    @staticmethod
+    def sugerir_taferas(nome_projeto, descricao_projeto):
+        resposta = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type": "text"},
+            messages=[
+                {"role": "system", "content": "Vou recomendar tarefas para o seu projeto conforme o nome e a descrição "
+                                              " fornecida."},
+                {"role": "user", "content": 'Quais tarefas seriam boas para se definir no projeto ' + nome_projeto +
+                                            ' que tem a seguinte descrição ' + descricao_projeto + ' Observação,'
+                                            ' limite suas sugestões em apenas títulos para garantir a concisão'}
+            ]
+        )
+
+        return resposta.choices[0].message.content
+
+    @staticmethod
+    def avaliar_projeto(nome_projeto, descricao_projeto, tarefas_projeto):
+        if len(tarefas_projeto) >= 0:
+            tarefas_projeto_string = ', '.join(tarefas_projeto)
+        else:
+            tarefas_projeto_string = 'None'
+        resposta = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type": "text"},
+            messages=[
+                {"role": "system", "content": "Vou avaliar o seu projeto conforme o nome, descrição e se houver as "
+                                              "tarefas. Se caso a descrição ou tarefas forem igual a None, "
+                                              "recomende a criação dos mesmos"},
+                {"role": "user", "content": 'Avalie o projeto (' + nome_projeto + ') que tem a descrição ('
+                                            + descricao_projeto + ') e as tarefas (' + tarefas_projeto_string + ') '
+                                            'Se necessário aponte pontos do projeto que possam precisar de melhorias, '
+                                            'como um novo titúlo, uma descrição mais concisa ou a criação de possíveis '
+                                            'tarefas que seriam uteis para o projeto. Observação, faça essa avaliação'
+                                            'de forma objetiva e resumida, evite de passar textos grandes.'}
+            ]
+        )
+
+        return resposta.choices[0].message.content
+
+    @staticmethod
+    def fomatar_avaliacao(prompt):
+        resposta = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type": "text"},
+            messages=[
+                {"role": "system", "content": "Vou formatar a avaliação do projeto para que possa ficar mais bonita."},
+                {"role": "user", "content": 'Formate a avaliação do projeto da seguinte forma. '
+                                            'Avaliação sobre o nome do projeto: (coloque aqui a avaliação acerca do '
+                                            'nome do projeto);'
+                                            ' // Avaliação da descrição do projeto: (coloque aqui a '
+                                            'avaliação sobre a descrição do projeto);'
+                                            ' // Avaliação sobre as tarefas: (coloque aqui a avaliação'
+                                            'sobre as tarefas do projeto).'
+                                            ' // Avaliação final: (coloque aqui a avaliação final do projeto)'
+                                            ' Aqui esta a avaliação do projeto para você formatar (' + prompt + ')'}
+            ]
+        )
+
+        return resposta.choices[0].message.content
 
 
 # Models
@@ -142,6 +201,15 @@ class ComandosUsuario:
             return True
         else:
             flash('Algo deu errado. Verifique se o email ou senha estão corretos', 'warning')
+            return False
+
+    @staticmethod
+    def verificar_senha(usuario_id, senha):
+        usuario_senha = Usuario.query.filter_by(id=usuario_id, senha=senha).first()
+        if usuario_senha:
+            return True
+        else:
+            flash('Algo deu errado. Verifique se a senha esta correta', 'warning')
             return False
 
     @staticmethod
@@ -344,8 +412,8 @@ def alterar_projeto(projeto_id):
     nova_descricao_projeto = request.form['descricao_projeto']
 
     ComandosProjeto.alterar_projeto(projeto_id, novo_nome_projeto, nova_descricao_projeto)
-
-    return redirect(url_for('index'))
+    proxima_url = request.referrer
+    return redirect(proxima_url or url_for('index'))
 
 
 @app.route('/excluir_projeto/<int:projeto_id>', methods=['POST'])
@@ -357,8 +425,14 @@ def excluir_projeto(projeto_id):
     if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
-    ComandosProjeto.excluir_projeto(projeto_id)
-    return redirect(url_for('index'))
+    usuario_id = session['usuario_id']
+    senha_usuario = request.form['senha_usuario']
+
+    if ComandosUsuario.verificar_senha(usuario_id, senha_usuario):
+        ComandosProjeto.excluir_projeto(projeto_id)
+
+    proxima_url = request.referrer
+    return redirect(proxima_url or url_for('index'))
 
 
 @app.route('/criar_tarefa', methods=['POST'])
@@ -407,9 +481,14 @@ def excluir_tarefa(tarefa_id):
     if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
+    senha_usuario = request.form['senha_usuario']
+
     tarefa = Tarefa.query.get(tarefa_id)
     projeto_id = tarefa.projeto_id
-    ComandosTarefa.excluir_tarefa(tarefa_id)
+    usuario_id = session['usuario_id']
+
+    if ComandosUsuario.verificar_senha(usuario_id, senha_usuario):
+        ComandosTarefa.excluir_tarefa(tarefa_id)
 
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
@@ -434,6 +513,42 @@ def sugerir_titulo(projeto_id):
     breve_drescricao = request.form['nova_descricao_modelo']
     novo_titulo = ChatGPTService.sugerir_titulo(breve_drescricao)
     flash(novo_titulo, 'info')
+    return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
+
+
+@app.route('/projeto/<int:projeto_id>/sugerir_taferas/<nome_projeto>/<descricao_projeto>', methods=['POST'])
+def sugerir_taferas(projeto_id, nome_projeto, descricao_projeto):
+    if 'usuario_id' not in session:
+        flash('Você precisa estar logado para completar esta ação', 'warning')
+        return redirect(url_for('index'))
+
+    sugestao_tarefas = ChatGPTService.sugerir_taferas(nome_projeto, descricao_projeto)
+    flash(sugestao_tarefas, 'info')
+
+    return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
+
+
+@app.route('/projeto/<int:projeto_id>/avaliar_projeto', methods=['POST'])
+def avaliar_projeto(projeto_id):
+    if 'usuario_id' not in session:
+        flash('Você precisa estar logado para completar esta ação', 'warning')
+        return redirect(url_for('index'))
+
+    projeto = Projeto.query.get(projeto_id)
+    projeto_nome = projeto.nome_projeto
+    projeto_descricao = projeto.descricao_projeto
+    projeto_tarefas = []
+
+    for tarefa in projeto.tarefas:
+        projeto_tarefas.append(tarefa.nome_tarefa)
+
+    if not projeto_descricao:
+        projeto_descricao = 'None'
+
+    avaliacao_projeto = ChatGPTService.avaliar_projeto(projeto_nome, projeto_descricao, projeto_tarefas)
+    avaliacao_formatada = ChatGPTService.fomatar_avaliacao(avaliacao_projeto)
+
+    flash(avaliacao_formatada, 'info')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 

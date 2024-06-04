@@ -7,6 +7,12 @@
         <div class="col-md-6">
             <h1 class="mb-4 font-monospace">{{ projeto.nome_projeto }}</h1>
             <p class="card-text ">{% if projeto.descricao_projeto %} {{ projeto.descricao_projeto }} {% endif %}</p>
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}">
+                Editar Projeto
+            </button>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirProjeto{{ projeto.id }}">
+                Excluir
+            </button>
 
             <h2 class="mt-4">Suas Tarefas:</h2>
             <div class="list-group">
@@ -20,9 +26,7 @@
                         {% endif %}
                         <div class="mt-2">
                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}">Alterar</button>
-                            <form action="{{ url_for('excluir_tarefa', tarefa_id=tarefa.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
-                            </form>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirTarefa{{ tarefa.id }}">Excluir</button>
                         </div>
                     </div>
 
@@ -51,7 +55,7 @@
                                         </div>
                                         <div class="mb-3">
                                             <label for="nova_data_entrega" class="form-label">Data de Entrega:</label>
-                                            <input type="date" class="form-control text-secondary" id="nova_data_entrega" name="nova_data_entrega" value="{{ tarefa.data_entrega.strftime('%d-%m-%Y') if tarefa.data_entrega }}">
+                                            <input type="date" class="form-control text-secondary" id="nova_data_entrega" name="nova_data_entrega" value="{{ tarefa.data_entrega.strftime('%Y-%m-%d') if tarefa.data_entrega }}">
                                         </div>
                                         <button type="submit" class="btn btn-primary">Alterar</button>
                                     </form>
@@ -113,13 +117,25 @@
                 <div class="modal-body">
                     {% if projeto.descricao_projeto %}
                         <form action="{{ url_for('reescrever_descricao', projeto_id=projeto.id, descricao_projeto=projeto.descricao_projeto) }}" method="POST">
-                            <button type="submit" class="btn btn-primary">Sugerir uma nova descrição</button>
+                            <button type="submit" class="btn btn-outline-info">Sugerir uma nova descrição</button>
                         </form>
                     {% endif %}
 
-                    <button type="button" class="btn btn-secondary mt-3" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
+                    <button type="button" class="btn btn-outline-info mt-3" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
                         Sugerir um novo título para o projeto
                     </button>
+
+                    {% if projeto.descricao_projeto and projeto.nome_projeto %}
+                        <form action="{{ url_for('sugerir_taferas', projeto_id=projeto.id, nome_projeto=projeto.nome_projeto, descricao_projeto=projeto.descricao_projeto) }}" method="POST">
+                            <button type="submit" class="btn btn-outline-info mt-3">Sugerir novas tarefas</button>
+                        </form>
+                    {% endif %}
+                    <form action="{{ url_for('avaliar_projeto', projeto_id=projeto.id) }}" method="POST">
+                        <button type="submit" class="btn btn-outline-info mt-3">
+                            Avaliar o meu projeto
+                        </button>
+                    </form>
+
                 </div>
             </div>
         </div>
@@ -145,5 +161,54 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Editar Projeto -->
+    <div class="modal fade" id="modalEditarProjeto{{ projeto.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Editar Projeto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('alterar_projeto', projeto_id=projeto.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="nome_projeto" class="form-label">Nome do Projeto:</label>
+                            <input type="text" class="form-control text-secondary" id="nome_projeto" name="nome_projeto" value="{{ projeto.nome_projeto }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descricao_projeto" class="form-label">Descrição do Projeto:</label>
+                            <textarea class="form-control text-secondary" id="descricao_projeto" name="descricao_projeto" rows="3">{{ projeto.descricao_projeto }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Excluir Tarefa -->
+{% for tarefa in projeto.tarefas %}
+    <div class="modal fade" id="modalExcluirTarefa{{ tarefa.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Excluir Tarefa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('excluir_tarefa', tarefa_id=tarefa.id) }}" method="POST">
+                        <div class="mb-3">
+                            <p class="text-danger">Você tem certeza que deseja excluir a tarefa: {{ tarefa.nome_tarefa }}</p>
+                            <label for="senha_usuario" class="form-label">Escreva sua senha para confirmar a ação.</label>
+                            <input type="password" class="form-control text-secondary" id="senha_usuario" name="senha_usuario" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Confirmar Exclusão</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
 
 {% endblock %}
