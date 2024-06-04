@@ -258,6 +258,19 @@ class ComandosProjeto:
         flash('Projeto não encontrado.', 'danger')
         return False
 
+    @staticmethod
+    def coletar_dados(projeto_id):
+        projeto = Projeto.query.get(projeto_id)
+        if projeto:
+            nome_projeto = projeto.nome_projeto
+            descricao_projeto = projeto.descricao_projeto
+            lista_tarefas = []
+
+            for tarefa in projeto.tarefas:
+                lista_tarefas.append(tarefa.nome_tarefa)
+
+            return nome_projeto, descricao_projeto, lista_tarefas
+
 
 class ComandosTarefa:
     @staticmethod
@@ -350,27 +363,27 @@ def entrar():
     return redirect(url_for('index'))
 
 
-@app.route('/sair')
+@app.route('/sair', methods=['POST'])
 def sair():
     ComandosUsuario.deslogar_usuario()
     return redirect(url_for('index'))
 
 
-@app.route('/mudar_tema_claro')
+@app.route('/mudar_tema_claro', methods=['POST'])
 def mudar_tema_claro():
     session['tema'] = 'light'
     proxima_url = request.referrer
     return redirect(proxima_url or url_for('index'))
 
 
-@app.route('/mudar_tema_escuro')
+@app.route('/mudar_tema_escuro', methods=['POST'])
 def mudar_tema_escuro():
     session['tema'] = 'dark'
     proxima_url = request.referrer
     return redirect(proxima_url or url_for('index'))
 
 
-@app.route('/projeto/<int:projeto_id>', methods=['GET'])
+@app.route('/projeto/<int:projeto_id>')
 def projeto_especifico(projeto_id):
     if not ('usuario_id' in session):
         flash('Você precisa estar logado para acessar esta página', 'warning')
@@ -534,24 +547,21 @@ def sugerir_titulo(projeto_id):
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
-@app.route('/projeto/<int:projeto_id>/sugerir_taferas/<nome_projeto>/<descricao_projeto>', methods=['POST'])
-def sugerir_taferas(projeto_id, nome_projeto, descricao_projeto):
+@app.route('/projeto/<int:projeto_id>/sugerir_taferas', methods=['POST'])
+def sugerir_taferas(projeto_id):
     if 'usuario_id' not in session:
         flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    projeto = Projeto.query.get(projeto_id)
-    projeto_tarefas = []
-
-    for tarefa in projeto.tarefas:
-        projeto_tarefas.append(tarefa.nome_tarefa)
+    nome_projeto, descricao_projeto, projeto_tarefas = ComandosProjeto.coletar_dados(projeto_id)
 
     sugestao_tarefas = ChatGPTService.sugerir_taferas(nome_projeto, descricao_projeto, projeto_tarefas)
     flash(sugestao_tarefas, 'info')
 
     sugestao_tarefas = sugestao_tarefas.split(';')
 
-    return render_template('projeto_especifico.html', projeto=projeto, sugestao_tarefas=sugestao_tarefas)
+    return render_template('projeto_especifico.html', projeto=Projeto.query.get(projeto_id),
+                           sugestao_tarefas=sugestao_tarefas)
 
 
 @app.route('/projeto/<int:projeto_id>/adicionar_tarefas_sugeridas', methods=['POST'])
@@ -576,18 +586,12 @@ def avaliar_projeto(projeto_id):
         flash('Você precisa estar logado para completar esta ação', 'warning')
         return redirect(url_for('index'))
 
-    projeto = Projeto.query.get(projeto_id)
-    projeto_nome = projeto.nome_projeto
-    projeto_descricao = projeto.descricao_projeto
-    projeto_tarefas = []
+    nome_projeto, descricao_projeto, projeto_tarefas = ComandosProjeto.coletar_dados(projeto_id)
 
-    for tarefa in projeto.tarefas:
+    for tarefa in projeto_tarefas:
         projeto_tarefas.append(tarefa.nome_tarefa)
 
-    if not projeto_descricao:
-        projeto_descricao = 'None'
-
-    avaliacao_projeto = ChatGPTService.avaliar_projeto(projeto_nome, projeto_descricao, projeto_tarefas)
+    avaliacao_projeto = ChatGPTService.avaliar_projeto(nome_projeto, descricao_projeto, projeto_tarefas)
     avaliacao_formatada = ChatGPTService.fomatar_avaliacao(avaliacao_projeto)
 
     flash(avaliacao_formatada, 'info')
