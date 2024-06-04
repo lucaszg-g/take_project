@@ -542,6 +542,11 @@ def sugerir_titulo(projeto_id):
         return redirect(url_for('index'))
 
     breve_drescricao = request.form['nova_descricao_modelo']
+
+    if not breve_drescricao:
+        flash('Escreva alguma descrição para tentarmos te ajudar', 'warning')
+        return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
+
     novo_titulo = ChatGPTService.sugerir_titulo(breve_drescricao)
     flash(novo_titulo, 'info')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
@@ -587,9 +592,6 @@ def avaliar_projeto(projeto_id):
         return redirect(url_for('index'))
 
     nome_projeto, descricao_projeto, projeto_tarefas = ComandosProjeto.coletar_dados(projeto_id)
-
-    for tarefa in projeto_tarefas:
-        projeto_tarefas.append(tarefa.nome_tarefa)
 
     avaliacao_projeto = ChatGPTService.avaliar_projeto(nome_projeto, descricao_projeto, projeto_tarefas)
     avaliacao_formatada = ChatGPTService.fomatar_avaliacao(avaliacao_projeto)

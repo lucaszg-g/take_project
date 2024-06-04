@@ -135,9 +135,8 @@
                     </form>
                 {% endif %}
 
-                <button type="button" class="btn btn-outline-info mt-3 ia-action-btn" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
+                <button type="button" class="btn btn-outline-info mt-3" data-bs-toggle="modal" data-bs-target="#modalNovoTitulo" data-bs-dismiss="modal">
                     Sugerir um novo título para o projeto
-                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 </button>
 
                 {% if projeto.descricao_projeto and projeto.nome_projeto %}
@@ -172,7 +171,7 @@
                 <form action="{{ url_for('sugerir_titulo', projeto_id=projeto.id) }}" method="POST" class="ia-action-form">
                     <div class="mb-3">
                         <label for="novaDescricao" class="form-label">Escreva uma pequena descrição para sugerirmos um título para o seu projeto:</label>
-                        <textarea class="form-control" id="novaDescricao" name="nova_descricao_modelo" rows="3" required></textarea>
+                        <textarea class="form-control" id="novaDescricao" name="nova_descricao_modelo" rows="3"></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary ia-action-btn">
                         Enviar
