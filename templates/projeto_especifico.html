@@ -316,17 +316,48 @@
 
     <!-- Spinners -->
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-          const spinnerButtons = document.querySelectorAll(".ia-action-btn");
-
-          spinnerButtons.forEach(button => {
-            button.addEventListener("click", function () {
-              const spinner = button.querySelector(".spinner-border");
-
-              spinner.classList.toggle("d-none");
+        document.addEventListener('DOMContentLoaded', function() {
+            var forms = document.querySelectorAll('form.ia-action-form');
+            forms.forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    var btn = form.querySelector('.ia-action-btn');
+                    btn.disabled = true;
+                    var spinner = btn.querySelector('.spinner-border');
+                    spinner.classList.remove('d-none');
+                });
             });
-          });
 
+            var formCriarTarefa = document.getElementById('formCriarTarefa');
+            formCriarTarefa.addEventListener('submit', function(event) {
+                var btnCriarTarefa = document.getElementById('btnCriarTarefa');
+                btnCriarTarefa.disabled = true;
+                var spinner = btnCriarTarefa.querySelector('.spinner-border');
+                spinner.classList.remove('d-none');
+            });
+
+            var btnAbrirModalExclusao = document.getElementById('btnAbrirModalExclusao');
+            btnAbrirModalExclusao.addEventListener('click', function(event) {
+                var checkboxes = document.querySelectorAll('.tarefa-checkbox');
+                var algumSelecionado = false;
+                checkboxes.forEach(function(checkbox) {
+                    if (checkbox.checked) {
+                        algumSelecionado = true;
+                    }
+                });
+                if (algumSelecionado) {
+                    var modalExcluirTarefas = new bootstrap.Modal(document.getElementById('modalExcluirTarefasSelecionadas'));
+                    modalExcluirTarefas.show();
+                } else {
+                    alert('Nenhuma tarefa selecionada');
+                }
+            });
+
+            document.getElementById('formExcluirTarefas').addEventListener('submit', function(event) {
+                var btnConfirmarExclusao = document.getElementById('btnConfirmarExclusao');
+                btnConfirmarExclusao.disabled = true;
+                var spinner = btnConfirmarExclusao.querySelector('.spinner-border');
+                spinner.classList.remove('d-none');
+            });
         });
 
     </script>
