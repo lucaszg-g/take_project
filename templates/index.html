@@ -63,11 +63,9 @@
                                     <p class="mt-2">Descrição:</p>
                                     <p class="card-text text-secondary" style="max-height: 150px; overflow-y: auto;">{% if projeto.descricao_projeto %}{{ projeto.descricao_projeto }}{% endif %}</p>
                                     <div class="mt-auto mx-auto">
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Ações">
-                                            <a href="{{ url_for('projeto_especifico', projeto_id=projeto.id) }}" class="btn btn-primary"><i class="bi bi-box-arrow-in-left"></i> Visualizar</a>
-                                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}"><i class="bi bi-pencil"></i> Editar</button>
-                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirProjeto{{ projeto.id }}"><i class="bi bi-trash"></i> Excluir</button>
-                                        </div>
+                                            <a href="{{ url_for('projeto_especifico', projeto_id=projeto.id) }}" class="btn btn-primary mt-2"><i class="bi bi-box-arrow-in-left"></i> Visualizar</a>
+                                            <button type="button" class="btn btn-secondary mt-2" data-bs-toggle="modal" data-bs-target="#modalEditarProjeto{{ projeto.id }}"><i class="bi bi-pencil"></i> Editar</button>
+                                            <button type="button" class="btn btn-danger mt-2" data-bs-toggle="modal" data-bs-target="#modalExcluirProjeto{{ projeto.id }}"><i class="bi bi-trash"></i> Excluir</button>
                                     </div>
                                 </div>
                             </div>

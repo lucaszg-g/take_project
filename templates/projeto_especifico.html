@@ -31,9 +31,9 @@
                             {% if tarefa.data_entrega %}
                                 <small> <b>Data de entrega: </b>{{ tarefa.data_entrega.strftime('%d/%m/%Y') }}</small>
                             {% endif %}
-                            <div class="mt-2 btn-group">
-                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}"><i class="bi bi-pencil"></i></button>
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirTarefa{{ tarefa.id }}"><i class="bi bi-trash"></i></button>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAlterarTarefa{{ tarefa.id }}"><i class="bi bi-pencil"></i> Editar</button>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirTarefa{{ tarefa.id }}"><i class="bi bi-trash"></i> Excluir</button>
                             </div>
                         </div>
                     {% endfor %}
@@ -280,6 +280,43 @@
         </div>
     </div>
 </div>
+
+{% for tarefa in projeto.tarefas %}
+    <!-- Modal Alterar Tarefa -->
+    <div class="modal fade" id="modalAlterarTarefa{{ tarefa.id }}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Alterar Tarefa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('alterar_tarefa', tarefa_id=tarefa.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="novo_nome_tarefa" class="form-label">Nome da Tarefa:</label>
+                            <input type="text" class="form-control text-secondary" id="novo_nome_tarefa" name="novo_nome_tarefa" value="{{ tarefa.nome_tarefa }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novo_status" class="form-label">Status:</label>
+                            <select class="form-control text-secondary" id="novo_status" name="novo_status" required>
+                                <option value="Não Iniciado" {% if tarefa.status == 'Não Iniciado' %}selected{% endif %}>Não Iniciado</option>
+                                <option value="Em andamento" {% if tarefa.status == 'Em andamento' %}selected{% endif %}>Em Andamento</option>
+                                <option value="Incompleta" {% if tarefa.status == 'Incompleta' %}selected{% endif %}>Incompleta</option>
+                                <option value="Completa" {% if tarefa.status == 'Completa' %}selected{% endif %}>Completa</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nova_data_entrega" class="form-label">Data de Entrega:</label>
+                            <input type="date" class="form-control text-secondary" id="nova_data_entrega" name="nova_data_entrega" value="{{ tarefa.data_entrega.strftime('%Y-%m-%d') if tarefa.data_entrega }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Alterar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
 {% endblock %}
 
 {% block script %}

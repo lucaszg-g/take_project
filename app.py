@@ -130,7 +130,9 @@ class ChatGPTService:
                 {"role": "system", "content": "Aja como um filtro de textos."},
                 {"role": "user",
                  "content": f'Se o texto ({novo_nome_projeto}) estiver entre aspas, retire-as para mim. Se não tiver, '
-                            f'apenas repasse o texto para mim. Observação: escreva apenas o texto nu e cru.'}
+                            f'apenas repasse o texto para mim. Observação: retorne apenas e versão final da sua '
+                            f'resposta. Não e necessário realizar comparações e nem nada do tipo, '
+                            f'apenas a versão final'}
             ]
         )
         return resposta.choices[0].message.content
