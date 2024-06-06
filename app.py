@@ -445,6 +445,9 @@ class MudarTema:
 # Routes
 @app.route('/')
 def index():
+    if not ('tema' in session):
+        session['tema'] = 'light'
+
     if 'usuario_id' in session:
         projetos = Projeto.query.filter_by(usuario_id=session['usuario_id']).all()
         return render_template('index.html', projetos=projetos)
