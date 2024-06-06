@@ -16,12 +16,16 @@ client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
 # ChatGPT
 class ChatGPTService:
-    __instance = None
+    _instance = None
 
-    def __new__(cls):  # Instancia única
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-        return cls.__instance
+    def __new__(cls):  # Singleton
+        if cls._instance is None:
+            cls._instance = super(ChatGPTService, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        # Inicialização do serviço
+        pass
 
     @staticmethod
     def sugerir_descricao(descricao_projeto, nome_projeto):
@@ -262,27 +266,40 @@ class ComandosProjeto:
         projeto = Projeto.query.get(projeto_id)
 
         if projeto:
-            # Alterar so o título
-            if novo_nome_projeto and not nova_descricao_projeto:
-                projeto.nome_projeto = ChatGPTService.filtrar_titulo(novo_nome_projeto)
-                db.session.commit()
-                flash(f'O título do projeto foi alterado com sucesso para "{projeto.nome_projeto}"!', 'success')
-                return projeto
-
-            # Alterar so a descrição
-            elif nova_descricao_projeto and not novo_nome_projeto:
-                projeto.descricao_projeto = nova_descricao_projeto
-                db.session.commit()
-                flash('A descrição do projeto foi alterada com sucesso!', 'success')
-                return projeto
-
-            # Altera ambos
             projeto.nome_projeto = novo_nome_projeto
             projeto.descricao_projeto = nova_descricao_projeto
             db.session.commit()
             flash('O projeto foi alterado com sucesso!', 'success')
             return projeto
 
+        else:
+            # Erro: projeto não existe ou não foi encontrado
+            flash('O projeto não existe ou não foi encontrado.', 'warning')
+            return None
+
+    @staticmethod
+    def alterar_nome_projeto(projeto_id, novo_nome_projeto):
+        projeto = Projeto.query.get(projeto_id)
+
+        if projeto:
+            projeto.nome_projeto = ChatGPTService.filtrar_titulo(novo_nome_projeto)
+            db.session.commit()
+            flash(f'O título do projeto foi alterado com sucesso para "{projeto.nome_projeto}"!', 'success')
+            return projeto
+        else:
+            # Erro: projeto não existe ou não foi encontrado
+            flash('O projeto não existe ou não foi encontrado.', 'warning')
+            return None
+
+    @staticmethod
+    def alterar_descricao_projeto(projeto_id, nova_descricao_projeto):
+        projeto = Projeto.query.get(projeto_id)
+
+        if projeto:
+            projeto.descricao_projeto = nova_descricao_projeto
+            db.session.commit()
+            flash('O projeto foi alterado com sucesso!', 'success')
+            return projeto
         else:
             # Erro: projeto não existe ou não foi encontrado
             flash('O projeto não existe ou não foi encontrado.', 'warning')
@@ -660,7 +677,7 @@ def adicionar_descricao_sugerida(projeto_id, nova_descricao_sugerida):
     if not VerificarPermissoes.verificar_sessao():
         return redirect(url_for('index'))
 
-    ComandosProjeto.alterar_projeto(projeto_id, None, nova_descricao_sugerida)
+    ComandosProjeto.alterar_descricao_projeto(projeto_id, nova_descricao_sugerida)
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
@@ -691,7 +708,7 @@ def adicionar_titulo_sugerido(projeto_id, novo_titulo_sugerido):
     if not VerificarPermissoes.verificar_sessao():
         return redirect(url_for('index'))
 
-    ComandosProjeto.alterar_projeto(projeto_id, novo_titulo_sugerido, None)
+    ComandosProjeto.alterar_nome_projeto(projeto_id, novo_titulo_sugerido)
 
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
