@@ -387,10 +387,10 @@
     <script>
     document.addEventListener("DOMContentLoaded", function () {
         // Ao clicar em uma checkbox, verificar se há alguma tarefa selecionada
-        var checkboxes = document.querySelectorAll('.tarefa-checkbox');
+        let checkboxes = document.querySelectorAll('.tarefa-checkbox');
         checkboxes.forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {
-                var algumSelecionado = false;
+                let algumSelecionado = false;
                 checkboxes.forEach(function(cb) {
                     if (cb.checked) {
                         algumSelecionado = true;
