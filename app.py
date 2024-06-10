@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from flask import Flask, render_template, redirect, url_for, request, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
@@ -6,143 +7,136 @@ import os
 
 # Configurações
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = 'sua_chave_secreta'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///teste9.db'
 
-db = SQLAlchemy(app)
 
-client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
-
-
-# ChatGPT
-class ChatGPTService:
+# Classe Singleton para o Banco de Dados
+class Database:
     _instance = None
 
-    def __new__(cls):  # Singleton
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(ChatGPTService, cls).__new__(cls)
+            cls._instance = super(Database, cls).__new__(cls, *args, **kwargs)
+            cls._instance.__initialized = False
         return cls._instance
 
     def __init__(self):
-        # Inicialização do serviço
-        pass
+        if self.__initialized:
+            return
+        self.__initialized = True
+        self.db = SQLAlchemy()
 
-    @staticmethod
-    def sugerir_descricao(descricao_projeto, nome_projeto):
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            response_format={"type": "text"},
-            messages=[
-                {"role": "system", "content": "Responda como um professor"},
-                {"role": "user", "content": f'Crie uma nova descrição para projeto ({nome_projeto}). Observação, '
-                                            f'Lembre-se de manter a escrita breve e direta para destacar os principais'
-                                            f' pontos do projeto. Observação 2, o projeto ja possui uma descrição. '
-                                            f'Observação 3, retorne apenas a descrição que você criou, nada mais alem '
-                                            f'disso. '
-                                            f'({descricao_projeto}). Use-a de base para a desenvolver a sua nova '
-                                            f'descrição.'}
-            ]
-        )
+    def init_app(self, app):
+        self.db.init_app(app)
+
+
+# Cria uma única instância do banco de dados
+database = Database()
+database.init_app(app)
+db = database.db
+
+# Chave API OpenAI
+key = os.environ['OPENAI_API_KEY']
+
+
+# Serviço OpenAI
+class OpenAIService:
+    def __init__(self, api_key):
+        self.client = OpenAI(api_key=api_key)
+
+    def create_completion(self, model, messages):
+        response = self.client.chat.completions.create(model=model, messages=messages)
         return response.choices[0].message.content
 
-    @staticmethod
-    def sugerir_titulo(breve_descricao):
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            response_format={"type": "text"},
-            messages=[
-                {"role": "system", "content": "Aja como um professor de português."},
-                {"role": "user",
-                 "content": f'Qual seria um bom título com base na seguinte descrição ({breve_descricao}). Observação, '
-                            f'limite seu título a apenas algumas palavras para garantir a concisão'}
-            ]
-        )
-        return resposta.choices[0].message.content
+
+# Padrão Singleton para ChatGPTService
+class ChatGPTService:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(ChatGPTService, cls).__new__(cls, *args, **kwargs)
+            cls._instance.__initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self.__initialized:
+            return
+        self.__initialized = True
+        self.facade = OpenAIService(api_key=os.environ['OPENAI_API_KEY'])
 
     @staticmethod
-    def sugerir_taferas(nome_projeto, descricao_projeto, tarefas_projeto):
-        if len(tarefas_projeto) >= 0:
-            tarefas_projeto_string = ', '.join(tarefas_projeto)
-        else:
-            tarefas_projeto_string = None
+    def _criar_mensagem(conteudo_sistema, conteudo_usuario):
+        return [
+            {"role": "system", "content": conteudo_sistema},
+            {"role": "user", "content": conteudo_usuario}
+        ]
 
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            response_format={"type": "text"},
-            messages=[
-                {"role": "system", "content": "Aja como um professor"},
-                {"role": "user", "content": f'Quais tarefas seriam boas para se definir no projeto ({nome_projeto}) que'
-                                            f' tem a seguinte descrição ({descricao_projeto}). Observação, limite suas '
-                                            f'sugestões em apenas títulos para garantir a concisão. Observação 2, envie'
-                                            f' sua resposta separando os títulos com (;). Exemplo, abelha; mel; urso.'
-                                            f' Observação 3, o projeto ja tem as seguintes tarefas '
-                                            f'({tarefas_projeto_string})'}
-            ]
+    def sugerir_descricao(self, descricao_projeto, nome_projeto):
+        mensagens = self._criar_mensagem(
+            "Responda como um professor",
+            f'Crie uma nova descrição para o projeto ({nome_projeto}). Lembre-se de manter a escrita breve '
+            f'e direta para destacar os principais pontos do projeto. O projeto já possui uma descrição. Retorne apenas'
+            f' a descrição que você criou. ({descricao_projeto}). Use-a de base para desenvolver a sua nova descrição.'
         )
-        return resposta.choices[0].message.content
+        return self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens)
 
-    @staticmethod
-    def avaliar_projeto(nome_projeto, descricao_projeto, tarefas_projeto):
-        if len(tarefas_projeto) >= 0:
-            tarefas_projeto_string = ', '.join(tarefas_projeto)
-        else:
-            tarefas_projeto_string = None
-
-        if not descricao_projeto:
-            descricao_projeto = None
-
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            response_format={"type": "text"},
-            messages=[
-                {"role": "system", "content": "Aja como um gerente de projetos experiente na área"},
-                {"role": "user",
-                 "content": f'Avalie o projeto ({nome_projeto}) que tem a descrição ({descricao_projeto}) e as tarefas '
-                            f'({tarefas_projeto_string}). Se necessário aponte pontos do projeto que possam precisar de'
-                            f' melhorias, como um novo titúlo, uma descrição mais concisa ou a criação de possíveis '
-                            f'tarefas que seriam uteis para o projeto. Observação, faça essa avaliação de forma'
-                            f' objetiva e resumida, evite de passar textos grandes. Observação 2, tenha dividido na sua'
-                            f'avaliação a seguinte estrutura; Avaliação acerca do nome do projeto, Avaliação acerca a'
-                            f'descrição do projeto e Avaliação acerca as tarefas.'}
-            ]
+    def sugerir_titulo(self, breve_descricao):
+        mensagens = self._criar_mensagem(
+            "Aja como um professor de português.",
+            f'Qual seria um bom título com base na seguinte descrição ({breve_descricao}). Limite seu '
+            f'título a apenas algumas palavras para garantir a concisão.'
         )
-        return ChatGPTService.fomatar_avaliacao(resposta.choices[0].message.content)
+        return self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens)
 
-    @staticmethod
-    def fomatar_avaliacao(prompt):
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            response_format={"type": "text"},
-            messages=[
-                {"role": "system", "content": "Aja como um formatador de texto."},
-                {"role": "user", "content": f'Formate a avaliação do projeto da seguinte forma. Avaliação sobre o nome'
-                                            f' do projeto: (coloque aqui a avaliação acerca do nome do projeto); '
-                                            f'Avaliação da descrição do projeto: (coloque aqui a avaliação sobre a '
-                                            f'descrição do projeto);nAvaliação sobre as tarefas: (coloque aqui a '
-                                            f'avaliação sobre as tarefas do projeto). Avaliação final: (coloque aqui '
-                                            f'a avaliação final do projeto). Aqui esta a avaliação do projeto para você'
-                                            f' deve formatar ({prompt})'}
-            ]
+    def sugerir_tarefas(self, nome_projeto, descricao_projeto, tarefas_projeto):
+        tarefas_projeto_string = ', '.join(tarefas_projeto) if tarefas_projeto else None
+        mensagens = self._criar_mensagem(
+            "Aja como um professor",
+            f'Quais tarefas seriam boas para se definir no projeto ({nome_projeto}) que tem a seguinte '
+            f'descrição ({descricao_projeto}). Limite suas sugestões a apenas títulos para garantir a concisão. Envie '
+            f'sua resposta separando os títulos com (;). Exemplo, abelha; mel; urso. O projeto já tem as seguintes '
+            f'tarefas ({tarefas_projeto_string}).'
         )
-        return resposta.choices[0].message.content
+        return self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens)
 
-    @staticmethod
-    def filtrar_titulo(novo_nome_projeto):
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
-            messages=[
-                {"role": "system", "content": "Aja como um filtro de textos."},
-                {"role": "user",
-                 "content": f'Se o texto ({novo_nome_projeto}) estiver entre aspas, retire-as para mim. Se não tiver, '
-                            f'apenas repasse o texto para mim. Observação: retorne apenas e versão final da sua '
-                            f'resposta. Não e necessário realizar comparações e nem nada do tipo, '
-                            f'apenas a versão final'}
-            ]
+    def avaliar_projeto(self, nome_projeto, descricao_projeto, tarefas_projeto):
+        tarefas_projeto_string = ', '.join(tarefas_projeto) if tarefas_projeto else None
+        descricao_projeto = descricao_projeto or None
+        mensagens = self._criar_mensagem(
+            "Aja como um gerente de projetos experiente na área",
+            f'Avalie o projeto ({nome_projeto}) que tem a descrição ({descricao_projeto}) e as tarefas '
+            f'({tarefas_projeto_string}). Se necessário aponte pontos do projeto que possam precisar de melhorias, '
+            f'como um novo título, uma descrição mais concisa ou a criação de possíveis tarefas que seriam úteis para '
+            f'o projeto. Faça essa avaliação de forma objetiva e resumida, evite textos longos. Divida sua avaliação '
+            f'da seguinte forma: Avaliação sobre o nome do projeto; Avaliação da descrição do projeto; Avaliação sobre '
+            f'as tarefas.'
         )
-        return resposta.choices[0].message.content
+        return self.formatar_avaliacao(self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens))
+
+    def formatar_avaliacao(self, prompt):
+        mensagens = self._criar_mensagem(
+            "Aja como um formatador de texto.",
+            f'Formate a avaliação do projeto da seguinte forma. Avaliação sobre o nome do projeto: '
+            f'(coloque aqui a avaliação acerca do nome do projeto); Avaliação da descrição do projeto: (coloque aqui a '
+            f'avaliação sobre a descrição do projeto); Avaliação sobre as tarefas: (coloque aqui a avaliação sobre as '
+            f'tarefas do projeto). Avaliação final: (coloque aqui a avaliação final do projeto). Aqui está a avaliação '
+            f'do projeto para você deve formatar ({prompt}).'
+        )
+        return self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens)
+
+    def filtrar_titulo(self, novo_nome_projeto):
+        mensagens = self._criar_mensagem(
+            "Aja como um filtro de textos.",
+            f'Se o texto ({novo_nome_projeto}) estiver entre aspas, retire-as para mim. Se não tiver, '
+            f'apenas repasse o texto para mim. Retorne apenas a versão final da sua resposta. Não é necessário '
+            f'realizar comparações nem nada do tipo, apenas a versão final.'
+        )
+        return self.facade.create_completion(model="gpt-3.5-turbo-0125", messages=mensagens)
 
 
-# Models
+# Classes de Modelo
 class Usuario(db.Model):
     __tablename__ = 'usuario'
     id = db.Column(db.Integer, primary_key=True)
@@ -180,13 +174,13 @@ class Tarefa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome_tarefa = db.Column(db.String(80), nullable=False)
     status = db.Column(db.String(30), nullable=False, default='incompleta')
-    data_criacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now())
+    data_criacao = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     data_entrega = db.Column(db.DateTime)
 
     projeto_id = db.Column(db.Integer, db.ForeignKey('projeto.id'), nullable=False)
     projeto = db.relationship('Projeto', backref=db.backref('projeto_rel', lazy=True))
 
-    def __init__(self, nome_tarefa, projeto_id, status='incompleta', data_entrega=None):
+    def __init__(self, nome_tarefa, projeto_id, status='Não Iniciado', data_entrega=None):
         self.nome_tarefa = nome_tarefa
         self.projeto_id = projeto_id
         self.status = status
@@ -200,7 +194,8 @@ class Tarefa(db.Model):
         self.data_entrega = data_entrega
 
 
-class ComandosUsuario:
+# Gerenciadores
+class GerenciadorUsuario:
     @staticmethod
     def verificar_email_nome(email, nome):
         verificar_email = Usuario.query.filter_by(email=email).first()
@@ -226,18 +221,16 @@ class ComandosUsuario:
             session['usuario_nome'] = usuario.nome
             flash(f'Seja Bem-Vindo(a) {usuario.nome}!', 'success')
             return True
-        else:
-            flash('Algo deu errado. Verifique se o email ou senha estão corretos', 'warning')
-            return False
+        flash('Algo deu errado. Verifique se o email ou senha estão corretos', 'warning')
+        return False
 
     @staticmethod
     def verificar_senha(usuario_id, senha):
         usuario_senha = Usuario.query.filter_by(id=usuario_id, senha=senha).first()
         if usuario_senha:
             return True
-        else:
-            flash('Algo deu errado. Verifique se a senha esta correta', 'warning')
-            return False
+        flash('Algo deu errado. Verifique se a senha está correta', 'warning')
+        return False
 
     @staticmethod
     def deslogar_usuario():
@@ -245,195 +238,150 @@ class ComandosUsuario:
         flash('Você desconectou com sucesso! Sentiremos sua falta por aqui...', 'success')
 
 
-class ComandosProjeto:
+class GerenciadorProjeto:
     @staticmethod
     def criar_projeto(nome_projeto, usuario_id):
         projeto_existente = Projeto.query.filter_by(nome_projeto=nome_projeto, usuario_id=usuario_id).first()
-
         if projeto_existente:
             flash(f'Já existe um projeto com o nome "{nome_projeto}".', 'warning')
             return None
-
         novo_projeto = Projeto(nome_projeto, usuario_id)
         db.session.add(novo_projeto)
         db.session.commit()
-
         flash(f'O projeto "{novo_projeto.nome_projeto}" foi criado com sucesso!', 'success')
         return novo_projeto
 
     @staticmethod
     def alterar_projeto(projeto_id, novo_nome_projeto, nova_descricao_projeto):
         projeto = Projeto.query.get(projeto_id)
-
         if projeto:
             projeto.nome_projeto = novo_nome_projeto
             projeto.descricao_projeto = nova_descricao_projeto
             db.session.commit()
             flash('O projeto foi alterado com sucesso!', 'success')
             return projeto
-
-        else:
-            # Erro: projeto não existe ou não foi encontrado
-            flash('O projeto não existe ou não foi encontrado.', 'warning')
-            return None
+        flash('O projeto não existe ou não foi encontrado.', 'warning')
+        return None
 
     @staticmethod
     def alterar_nome_projeto(projeto_id, novo_nome_projeto):
         projeto = Projeto.query.get(projeto_id)
-
         if projeto:
-            projeto.nome_projeto = ChatGPTService.filtrar_titulo(novo_nome_projeto)
+            projeto.nome_projeto = ChatGPTService().filtrar_titulo(novo_nome_projeto)
             db.session.commit()
             flash(f'O título do projeto foi alterado com sucesso para "{projeto.nome_projeto}"!', 'success')
             return projeto
-        else:
-            # Erro: projeto não existe ou não foi encontrado
-            flash('O projeto não existe ou não foi encontrado.', 'warning')
-            return None
+        flash('O projeto não existe ou não foi encontrado.', 'warning')
+        return None
 
     @staticmethod
     def alterar_descricao_projeto(projeto_id, nova_descricao_projeto):
         projeto = Projeto.query.get(projeto_id)
-
         if projeto:
             projeto.descricao_projeto = nova_descricao_projeto
             db.session.commit()
             flash('O projeto foi alterado com sucesso!', 'success')
             return projeto
-        else:
-            # Erro: projeto não existe ou não foi encontrado
-            flash('O projeto não existe ou não foi encontrado.', 'warning')
-            return None
+        flash('O projeto não existe ou não foi encontrado.', 'warning')
+        return None
 
     @staticmethod
     def excluir_projeto(projeto_id):
         projeto = Projeto.query.get(projeto_id)
-        nome_projeto = projeto.nome_projeto
-
+        nome_projeto = projeto.nome_projeto if projeto else None
         if projeto:
             db.session.delete(projeto)
             db.session.commit()
             flash(f'O projeto "{nome_projeto}" foi excluído com sucesso!', 'success')
             return True
-
-        else:
-            # Erro: projeto não existe ou não foi encontrado
-            flash(f'O projeto "{nome_projeto}" não existe ou não foi encontrado.', 'warning')
-            return False
+        flash(f'O projeto "{nome_projeto}" não existe ou não foi encontrado.', 'warning')
+        return False
 
     @staticmethod
     def coletar_dados(projeto_id):
         projeto = Projeto.query.get(projeto_id)
-
         if projeto:
             nome_projeto = projeto.nome_projeto
             descricao_projeto = projeto.descricao_projeto
-            lista_tarefas = []
-
-            for tarefa in projeto.tarefas:
-                lista_tarefas.append(tarefa.nome_tarefa)
-
+            lista_tarefas = [tarefa.nome_tarefa for tarefa in projeto.tarefas]
             return nome_projeto, descricao_projeto, lista_tarefas
-        else:
-            flash('Algo deu errado', 'danger')
-            return False
+        flash('Algo deu errado', 'danger')
+        return False
 
 
-class ComandosTarefa:
+class GerenciadorTarefa:
     @staticmethod
     def criar_tarefa(nome_tarefa, projeto_id):
         nova_tarefa = Tarefa(nome_tarefa, projeto_id)
         db.session.add(nova_tarefa)
         db.session.commit()
-
         if not VerificadorLoop.verificar_loop():
             flash(f'A Tarefa "{nova_tarefa.nome_tarefa}" foi criada com sucesso!', 'success')
-
         return nova_tarefa
 
     @staticmethod
     def alterar_tarefa(tarefa_id, novo_nome_tarefa, novo_status, nova_data_entrega):
         tarefa = Tarefa.query.get(tarefa_id)
-
         if tarefa:
             tarefa.nome_tarefa = novo_nome_tarefa
-
             if novo_status:
                 tarefa.status = novo_status
-
             if nova_data_entrega:
                 try:
                     tarefa.data_entrega = datetime.strptime(nova_data_entrega, '%Y-%m-%d')
                 except ValueError:
                     flash('Formato de data inválido.', 'danger')
                     return None
-
             else:
                 tarefa.data_entrega = None
-
             db.session.commit()
-
             if not VerificadorLoop.verificar_loop():
                 flash(f'A tarefa "{tarefa.nome_tarefa}" foi alterada com sucesso!', 'success')
-                return tarefa
-
+            return tarefa
         flash(f'A tarefa "{tarefa.nome_tarefa}" não foi encontrada ou não existe.', 'warning')
         return None
 
     @staticmethod
     def excluir_tarefa(tarefa_id):
         tarefa = Tarefa.query.get(tarefa_id)
-        nome_tarefa = tarefa.nome_tarefa
-
+        nome_tarefa = tarefa.nome_tarefa if tarefa else None
         if tarefa:
             db.session.delete(tarefa)
             db.session.commit()
             if not VerificadorLoop.verificar_loop():
                 flash(f'A tarefa "{nome_tarefa}" foi excluída com sucesso!', 'success')
             return True
-        else:
-            flash(f'A tarefa "{nome_tarefa}" não foi encontrada.', 'warning')
-            return False
+        flash(f'A tarefa "{nome_tarefa}" não foi encontrada.', 'warning')
+        return False
 
 
-class VerificarPermissoes:
+class Verificador:
     @staticmethod
     def verificar_permissao_projeto(projeto_id):
         projeto = Projeto.query.get(projeto_id)
-
         if not projeto or projeto.usuario_id != session['usuario_id']:
             flash('Você não tem permissão para acessar este projeto.', 'warning')
             return False
-
         return True
 
     @staticmethod
     def verificar_permissao_tarefa(tarefa_id):
         tarefa = Tarefa.query.get(tarefa_id)
-
         if not tarefa or tarefa.projeto.usuario_id != session['usuario_id']:
             flash('Você não tem permissão para acessar esta tarefa.', 'warning')
             return False
-
         return True
 
     @staticmethod
     def verificar_sessao():
         if 'usuario_id' in session:
             return True
-        else:
-            flash('Você não tem permissão para executar essa ação.', 'warning')
-            return False
+        flash('Você não tem permissão para executar essa ação.', 'warning')
+        return False
 
 
 class VerificadorLoop:
-    __instance = None
     status_loop = False
-
-    def __new__(cls):  # Instancia única
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-        return cls.__instance
 
     @classmethod
     def iniciar_loop(cls):
@@ -454,17 +402,82 @@ class MudarTema:
         session['tema'] = tema
         proxima_url = request.referrer
         if proxima_url and request.method == 'GET':
-            return redirect(proxima_url)
-        else:
-            return redirect(url_for('index'))
+            return redirect(proxima_url or url_for('index'))
+        return redirect(url_for('index'))
 
 
-# Routes
+# Padrão Command para Projetos e Tarefas
+class Command(ABC):
+    @abstractmethod
+    def execute(self):
+        pass
+
+
+class CriarProjetoCommand(Command):
+    def __init__(self, nome_projeto, usuario_id, descricao_projeto=None):
+        self.nome_projeto = nome_projeto
+        self.usuario_id = usuario_id
+        self.descricao_projeto = descricao_projeto
+
+    def execute(self):
+        projeto = GerenciadorProjeto.criar_projeto(self.nome_projeto, self.usuario_id)
+        if projeto and self.descricao_projeto:
+            projeto.set_descricao_projeto(self.descricao_projeto)
+        return projeto
+
+
+class AlterarProjetoCommand(Command):
+    def __init__(self, projeto_id, novo_nome_projeto, nova_descricao_projeto):
+        self.projeto_id = projeto_id
+        self.novo_nome_projeto = novo_nome_projeto
+        self.nova_descricao_projeto = nova_descricao_projeto
+
+    def execute(self):
+        return GerenciadorProjeto.alterar_projeto(self.projeto_id, self.novo_nome_projeto, self.nova_descricao_projeto)
+
+
+class ExcluirProjetoCommand(Command):
+    def __init__(self, projeto_id):
+        self.projeto_id = projeto_id
+
+    def execute(self):
+        return GerenciadorProjeto.excluir_projeto(self.projeto_id)
+
+
+class CriarTarefaCommand(Command):
+    def __init__(self, nome_tarefa, projeto_id):
+        self.nome_tarefa = nome_tarefa
+        self.projeto_id = projeto_id
+
+    def execute(self):
+        return GerenciadorTarefa.criar_tarefa(self.nome_tarefa, self.projeto_id)
+
+
+class AlterarTarefaCommand(Command):
+    def __init__(self, tarefa_id, novo_nome_tarefa, novo_status, nova_data_entrega):
+        self.tarefa_id = tarefa_id
+        self.novo_nome_tarefa = novo_nome_tarefa
+        self.novo_status = novo_status
+        self.nova_data_entrega = nova_data_entrega
+
+    def execute(self):
+        return GerenciadorTarefa.alterar_tarefa(self.tarefa_id, self.novo_nome_tarefa, self.novo_status,
+                                                self.nova_data_entrega)
+
+
+class ExcluirTarefaCommand(Command):
+    def __init__(self, tarefa_id):
+        self.tarefa_id = tarefa_id
+
+    def execute(self):
+        return GerenciadorTarefa.excluir_tarefa(self.tarefa_id)
+
+
+# Rotas do Flask
 @app.route('/')
 def index():
-    if not ('tema' in session):
+    if 'tema' not in session:
         session['tema'] = 'light'
-
     if 'usuario_id' in session:
         projetos = Projeto.query.filter_by(usuario_id=session['usuario_id']).all()
         return render_template('index.html', projetos=projetos)
@@ -473,30 +486,20 @@ def index():
 
 @app.route('/registrar', methods=['POST'])
 def registrar():
-    nome = request.form['nome']
-    email = request.form['email']
-    senha = request.form['senha']
-
-    if ComandosUsuario.verificar_email_nome(email, nome):
-        ComandosUsuario.cadastrar_usuario(nome, email, senha)
-        return redirect(url_for('index'))
-
+    if GerenciadorUsuario.verificar_email_nome(request.form['email'], request.form['nome']):
+        GerenciadorUsuario.cadastrar_usuario(request.form['nome'], request.form['email'], request.form['senha'])
     return redirect(url_for('index'))
 
 
 @app.route('/entrar', methods=['POST'])
 def entrar():
-    email = request.form['email']
-    senha = request.form['senha']
-
-    ComandosUsuario.logar_usuario(email, senha)
-
+    GerenciadorUsuario.logar_usuario(request.form['email'], request.form['senha'])
     return redirect(url_for('index'))
 
 
 @app.route('/sair')
 def sair():
-    ComandosUsuario.deslogar_usuario()
+    GerenciadorUsuario.deslogar_usuario()
     return redirect(url_for('index'))
 
 
@@ -512,10 +515,7 @@ def mudar_tema_escuro():
 
 @app.route('/projeto/<int:projeto_id>')
 def projeto_especifico(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
-        return redirect(url_for('index'))
-
-    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
     projeto = Projeto.query.get(projeto_id)
@@ -523,132 +523,89 @@ def projeto_especifico(projeto_id):
     if not projeto:
         flash('O projeto especificado não foi encontrado', 'warning')
         return redirect(url_for('index'))
-
     return render_template('projeto_especifico.html', projeto=projeto)
 
 
 @app.route('/criar_projeto', methods=['POST'])
 def criar_projeto():
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
-    nome_projeto = request.form['nome_projeto']
-    descricao_projeto = request.form['descricao_projeto']
-    usuario_id = session['usuario_id']
-
-    projeto = ComandosProjeto.criar_projeto(nome_projeto, usuario_id)
-
-    if projeto:
-        if descricao_projeto:
-            projeto.set_descricao_projeto(descricao_projeto)
-        return redirect(url_for('index'))
+    command = CriarProjetoCommand(request.form['nome_projeto'], session['usuario_id'],
+                                  request.form.get('descricao_projeto'))
+    command.execute()
     return redirect(url_for('index'))
 
 
 @app.route('/alterar_projeto/<int:projeto_id>', methods=['POST'])
 def alterar_projeto(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
-    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
-        return redirect(url_for('index'))
-
-    novo_nome_projeto = request.form['nome_projeto']
-    nova_descricao_projeto = request.form['descricao_projeto']
-
-    ComandosProjeto.alterar_projeto(projeto_id, novo_nome_projeto, nova_descricao_projeto)
-
-    proxima_url = request.referrer
-    return redirect(proxima_url or url_for('index'))
+    command = AlterarProjetoCommand(projeto_id, request.form['nome_projeto'], request.form['descricao_projeto'])
+    command.execute()
+    return redirect(request.referrer or url_for('index'))
 
 
 @app.route('/excluir_projeto/<int:projeto_id>', methods=['POST'])
 def excluir_projeto(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
-    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
-        return redirect(url_for('index'))
-
-    usuario_id = session['usuario_id']
-    senha_usuario = request.form['senha_usuario']
-
-    if ComandosUsuario.verificar_senha(usuario_id, senha_usuario):
-        ComandosProjeto.excluir_projeto(projeto_id)
-        return redirect(url_for('index'))
-
-    proxima_url = request.referrer
-    return redirect(proxima_url or url_for('index'))
+    if GerenciadorUsuario.verificar_senha(session['usuario_id'], request.form['senha_usuario']):
+        command = ExcluirProjetoCommand(projeto_id)
+        command.execute()
+    return redirect(request.referrer or url_for('index'))
 
 
 @app.route('/criar_tarefa/<int:projeto_id>', methods=['POST'])
 def criar_tarefa(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_projeto(projeto_id):
         return redirect(url_for('index'))
 
-    if not VerificarPermissoes.verificar_permissao_projeto(projeto_id):
-        return redirect(url_for('index'))
-
-    nome_tarefa = request.form['nome_tarefa']
-    ComandosTarefa.criar_tarefa(nome_tarefa, projeto_id)
-
+    command = CriarTarefaCommand(request.form['nome_tarefa'], projeto_id)
+    command.execute()
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
 @app.route('/alterar_tarefa/<int:tarefa_id>', methods=['POST'])
 def alterar_tarefa(tarefa_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
-    if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
-        return redirect(url_for('index'))
-
-    novo_nome_tarefa = request.form['novo_nome_tarefa']
-    novo_status = request.form['novo_status']
-    nova_data_entrega = request.form['nova_data_entrega']
-
-    if not nova_data_entrega:
-        nova_data_entrega = None
-
-    ComandosTarefa.alterar_tarefa(tarefa_id, novo_nome_tarefa, novo_status, nova_data_entrega)
     tarefa = Tarefa.query.get(tarefa_id)
-    return redirect(url_for('projeto_especifico', projeto_id=tarefa.projeto_id))
+
+    command = AlterarTarefaCommand(tarefa_id, request.form['novo_nome_tarefa'],
+                                   request.form['novo_status'], request.form['nova_data_entrega'] or None)
+    command.execute()
+    return redirect(request.referrer or url_for('projeto_especifico', projeto_id=tarefa.projeto_id))
 
 
 @app.route('/excluir_tarefa/<int:tarefa_id>', methods=['POST'])
 def excluir_tarefa(tarefa_id):
-    if not VerificarPermissoes.verificar_sessao():
-        return redirect(url_for('index'))
-
-    if not VerificarPermissoes.verificar_permissao_tarefa(tarefa_id):
+    if not Verificador.verificar_sessao() or not Verificador.verificar_permissao_tarefa(tarefa_id):
         return redirect(url_for('index'))
 
     tarefa = Tarefa.query.get(tarefa_id)
+    command = ExcluirTarefaCommand(tarefa_id)
+    command.execute()
 
-    ComandosTarefa.excluir_tarefa(tarefa_id)
-    return redirect(url_for('projeto_especifico', projeto_id=tarefa.projeto_id))
+    return redirect(request.referrer or url_for('projeto_especifico', projeto_id=tarefa.projeto_id))
 
 
 @app.route('/projeto/<int:projeto_id>/excluir_tarefas_selecionadas', methods=['POST'])
 def excluir_tarefas_selecionadas(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
     tarefas_selecionadas = request.form.getlist('tarefas_selecionadas[]')
 
-    if len(tarefas_selecionadas) > 0:
-        # Instancia do objeto modo_loop
-        modo_loop = VerificadorLoop()
-
-        # Inicia o 'modo loop' para evitar passar vários flashes por conta do FOR
-        modo_loop.iniciar_loop()
-
+    if tarefas_selecionadas:
+        VerificadorLoop.iniciar_loop()
         for tarefa_id in tarefas_selecionadas:
-            ComandosTarefa.excluir_tarefa(tarefa_id)
+            ExcluirTarefaCommand(tarefa_id).execute()
+        VerificadorLoop.finalizar_loop()
         flash('Tarefas selecionadas excluídas com sucesso!', 'success')
-
-        # Finaliza o modo loop
-        modo_loop.finalizar_loop()
     else:
         flash('Algo deu errado', 'warning')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
@@ -657,116 +614,92 @@ def excluir_tarefas_selecionadas(projeto_id):
 @app.route('/projeto/<int:projeto_id>/reescrever_descricao', methods=['GET', 'POST'])
 def reescrever_descricao(projeto_id):
     if request.method == 'POST':
-        if not VerificarPermissoes.verificar_sessao():
+        if not Verificador.verificar_sessao():
             return redirect(url_for('index'))
 
-        nome_projeto, descricao_projeto, lista_tarefas = ComandosProjeto.coletar_dados(projeto_id)
-
-        nova_descricao_sugerida = ChatGPTService.sugerir_descricao(descricao_projeto, nome_projeto)
+        nome_projeto, descricao_projeto, _ = GerenciadorProjeto.coletar_dados(projeto_id)
+        nova_descricao_sugerida = ChatGPTService().sugerir_descricao(descricao_projeto, nome_projeto)
 
         flash(nova_descricao_sugerida, 'info')
         return render_template('projeto_especifico.html', projeto=Projeto.query.get(projeto_id),
                                nova_descricao_sugerida=nova_descricao_sugerida)
-    else:
-        flash('Algo deu errado ao carregar a pagina!', 'danger')
-        return redirect(url_for('index'))
+    flash('Algo deu errado ao carregar a pagina!', 'danger')
+    return redirect(url_for('index'))
 
 
 @app.route('/projeto/<int:projeto_id>/adicionar_descricao_sugerida/<string:nova_descricao_sugerida>', methods=['POST'])
 def adicionar_descricao_sugerida(projeto_id, nova_descricao_sugerida):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
-    ComandosProjeto.alterar_descricao_projeto(projeto_id, nova_descricao_sugerida)
+    GerenciadorProjeto.alterar_descricao_projeto(projeto_id, nova_descricao_sugerida)
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
 @app.route('/projeto/<int:projeto_id>/sugerir_titulo', methods=['GET', 'POST'])
 def sugerir_titulo(projeto_id):
     if request.method == 'POST':
-        if not VerificarPermissoes.verificar_sessao():
+        if not Verificador.verificar_sessao():
             return redirect(url_for('index'))
 
-        breve_drescricao = request.form['nova_descricao_modelo']
-
-        if not breve_drescricao:
+        breve_descricao = request.form['nova_descricao_modelo']
+        if not breve_descricao:
             flash('Algo deu errado!', 'warning')
             return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
-
-        novo_titulo = ChatGPTService.sugerir_titulo(breve_drescricao)
-
+        novo_titulo = ChatGPTService().sugerir_titulo(breve_descricao)
         flash(novo_titulo, 'info')
         return render_template('projeto_especifico.html', projeto=Projeto.query.get(projeto_id),
                                novo_titulo_sugerido=novo_titulo)
-    else:
-        flash('Algo deu errado ao carregar a pagina!', 'danger')
-        return redirect(url_for('index'))
+    flash('Algo deu errado ao carregar a pagina!', 'danger')
+    return redirect(url_for('index'))
 
 
 @app.route('/projeto/<int:projeto_id>/adicionar_titulo_sugerido/<string:novo_titulo_sugerido>', methods=['POST'])
 def adicionar_titulo_sugerido(projeto_id, novo_titulo_sugerido):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
-    ComandosProjeto.alterar_nome_projeto(projeto_id, novo_titulo_sugerido)
-
+    GerenciadorProjeto.alterar_nome_projeto(projeto_id, novo_titulo_sugerido)
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
-@app.route('/projeto/<int:projeto_id>/sugerir_taferas', methods=['GET', 'POST'])
-def sugerir_taferas(projeto_id):
+@app.route('/projeto/<int:projeto_id>/sugerir_tarefas', methods=['GET', 'POST'])
+def sugerir_tarefas(projeto_id):
     if request.method == 'POST':
-        if not VerificarPermissoes.verificar_sessao():
+        if not Verificador.verificar_sessao():
             return redirect(url_for('index'))
 
-        nome_projeto, descricao_projeto, projeto_tarefas = ComandosProjeto.coletar_dados(projeto_id)
-
-        sugestao_tarefas = ChatGPTService.sugerir_taferas(nome_projeto, descricao_projeto, projeto_tarefas)
-
+        nome_projeto, descricao_projeto, projeto_tarefas = GerenciadorProjeto.coletar_dados(projeto_id)
+        sugestao_tarefas = ChatGPTService().sugerir_tarefas(nome_projeto, descricao_projeto, projeto_tarefas)
         flash(sugestao_tarefas, 'info')
-
         sugestao_tarefas = sugestao_tarefas.split(';')
-
         return render_template('projeto_especifico.html', projeto=Projeto.query.get(projeto_id),
                                sugestao_tarefas=sugestao_tarefas)
-    else:
-        flash('Algo deu errado ao carregar a pagina!', 'danger')
-        return redirect(url_for('index'))
+    flash('Algo deu errado ao carregar a pagina!', 'danger')
+    return redirect(url_for('index'))
 
 
 @app.route('/projeto/<int:projeto_id>/adicionar_tarefas_sugeridas', methods=['POST'])
 def adicionar_tarefas_sugeridas(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
     tarefas_selecionadas = request.form.getlist('tarefas_sugeridas[]')
-
-    # Instancia do objeto modo_loop
-    modo_loop = VerificadorLoop()
-
-    # Inicia o 'modo loop' para evitar passar vários flashes por conta do FOR
-    modo_loop.iniciar_loop()
-
-    # Adicione as tarefas selecionadas ao projeto
+    VerificadorLoop.iniciar_loop()
     for tarefa in tarefas_selecionadas:
-        ComandosTarefa.criar_tarefa(tarefa, projeto_id)
-
-    # Finaliza o 'modo loop'
-    modo_loop.finalizar_loop()
-
+        CriarTarefaCommand(tarefa, projeto_id).execute()
+    VerificadorLoop.finalizar_loop()
     flash('As tarefas sugeridas foram adicionadas com sucesso!', 'success')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
 
 @app.route('/projeto/<int:projeto_id>/avaliar_projeto', methods=['POST'])
 def avaliar_projeto(projeto_id):
-    if not VerificarPermissoes.verificar_sessao():
+    if not Verificador.verificar_sessao():
         return redirect(url_for('index'))
 
-    nome_projeto, descricao_projeto, projeto_tarefas = ComandosProjeto.coletar_dados(projeto_id)
-
-    avaliacao_projeto = ChatGPTService.avaliar_projeto(nome_projeto, descricao_projeto, projeto_tarefas)
-
+    nome_projeto, descricao_projeto, projeto_tarefas = GerenciadorProjeto.coletar_dados(projeto_id)
+    avaliacao_projeto = ChatGPTService().avaliar_projeto(nome_projeto, descricao_projeto, projeto_tarefas)
     flash(avaliacao_projeto, 'info')
     return redirect(url_for('projeto_especifico', projeto_id=projeto_id))
 
@@ -774,6 +707,7 @@ def avaliar_projeto(projeto_id):
 # Inicializar a base de dados
 with app.app_context():
     db.create_all()
+
 
 # Executar a aplicação
 if __name__ == '__main__':
