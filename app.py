@@ -36,9 +36,6 @@ database = Database()
 database.init_app(app)
 db = database.db
 
-# Chave API OpenAI
-key = os.environ['OPENAI_API_KEY']
-
 
 # Serviço OpenAI
 class OpenAIService:
